@@ -13,7 +13,7 @@
 - **Bị chặn:** không
 - **Việc tiếp theo:**
   - [ ] Cả đội đọc và approve TEAM_PLAN + WORKING_RULES (buổi họp Sprint 0)
-  - [ ] Đổi tên TIC-10, TIC-13, TIC-21 trên Linear; tạo issue NFT-21, NFT-22
+  - [ ] Tạo issue Linear theo `docs/BACKLOG.md` (chờ kết nối Linear connector)
   - [ ] Chốt các mục "Đang mở" trong DECISIONS.md theo hạn
   - [ ] Bật branch protection cho `main` (1 approve, CI bắt buộc)
   - [ ] Sprint 0: dựng monorepo + CI + `packages/shared` (LEAD)

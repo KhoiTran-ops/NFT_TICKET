@@ -1,6 +1,6 @@
 # Kế hoạch đội và chia module
 
-> Đọc cùng: [`PRODUCT_CONTEXT.md`](../PRODUCT_CONTEXT.md) (nghiệp vụ, nguồn sự thật) · [`PIPELINE_AND_STRUCTURE.md`](../PIPELINE_AND_STRUCTURE.md) (kỹ thuật) · [`WORKING_RULES.md`](WORKING_RULES.md) (quy tắc) · [`DECISIONS.md`](DECISIONS.md) (quyết định).
+> Đọc cùng: [`PRODUCT_CONTEXT.md`](../PRODUCT_CONTEXT.md) (nghiệp vụ, nguồn sự thật) · [`BACKLOG.md`](BACKLOG.md) (task chi tiết) · [`PIPELINE_AND_STRUCTURE.md`](../PIPELINE_AND_STRUCTURE.md) (kỹ thuật) · [`WORKING_RULES.md`](WORKING_RULES.md) (quy tắc) · [`DECISIONS.md`](DECISIONS.md) (quyết định).
 
 ## 1. Chiến lược
 
