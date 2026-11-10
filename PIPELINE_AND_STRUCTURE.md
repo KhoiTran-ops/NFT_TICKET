@@ -2,6 +2,10 @@
 
 > Dựa trên `IDEA_CONCERT_TICKET_P2P.md`. Đây là đề xuất kỹ thuật cho MVP hackathon trên **Avalanche Fuji (C-Chain)**.
 > Các lựa chọn stack bên dưới là mặc định hợp lý, đội có thể thay (ví dụ Hardhat thay Foundry) mà không ảnh hưởng kiến trúc.
+>
+> **Thứ tự ưu tiên tài liệu:** khi mâu thuẫn, [`PRODUCT_CONTEXT.md`](PRODUCT_CONTEXT.md) (nghiệp vụ) thắng file này (kỹ thuật). Các quyết định nằm ở [`docs/DECISIONS.md`](docs/DECISIONS.md).
+>
+> **Lưu ý D-004:** Product yêu cầu bán lại bằng **đấu giá** (PRODUCT_CONTEXT mục 4), trong khi mục 2.2 dưới đây mô tả listing giá cố định mua ngay. Đề xuất: phiên đấu giá và bid chạy off-chain ở backend (nhanh, không tốn gas), kết quả quyết toán on-chain qua `ResaleEscrow.settle()`. Listing giá cố định giữ làm phương án dự phòng cho demo.
 
 ---
 
@@ -14,7 +18,8 @@
         │ REST / WebSocket            │ đọc trạng thái (viem)        │ quét QR động
 ┌───────▼─────────────────────────────▼──────────────────────────────▼──────┐
 │                         Backend (Node + TypeScript)                        │
-│  Auth (email OTP) · Wallet/Relayer (trả gas) · QR Service (mã 30s, ký HMAC)│
+│  Auth (OTP, JWT, 2FA) · RBAC + Audit · eKYC (provider adapter) · Auction  │
+│  Wallet/Relayer (trả gas) · QR Service (mã 30s, ký HMAC) · Refund jobs     │
 │  Check-in Service (khóa nguyên tử) · Indexer (nghe event contract)         │
 │  DB off-chain: PII, user↔wallet, gate token, cache trạng thái vé           │
 └───────┬───────────────────────────────────────────────────────────────────┘
@@ -84,12 +89,22 @@ Scanner quét → POST /checkin
    → trả ✅ / ❌ (lý do: hết hạn, đã dùng, không còn là chủ, bị thu hồi)
 ```
 
-### 2.4 Thu hồi (quyền hạn chế của issuer)
+### 2.4 Hủy sự kiện và hoàn tiền (luồng hoàn tiền duy nhất)
+
+Người dùng **không** có luồng hủy vé. Hoàn tiền chỉ xảy ra khi sự kiện bị hủy (PRODUCT_CONTEXT mục 3.2–3.4).
 
 ```
-Issuer ──revoke(ticketId, reasonCode)──► TicketRegistry   (chỉ khi vé không Listed; có reasonCode + event)
-Issuer ──cancelEvent(eventId)──► EventRegistry → mọi listing mở bị hủy, người mua đang chờ nhận lại tiền
+org_owner ──POST /events/:id/cancel-request (lý do)──► Backend   event = cancel_requested (dừng bán, cấm mở phiên)
+platform_admin ──POST /event-cancellations/:id/approve──► Backend (yêu cầu TOTP, ghi AuditLog)
+   1. DB transaction: event = cancelled · giải phóng giữ chỗ · hủy phiên đấu giá (event_cancelled)
+                      · thu hồi gate token · ticket = void_pending_refund
+   2. Tạo Refund cho MỖI payment chưa giải ngân (idempotency key = refund:{payment_id})
+   3. Relayer ──cancelEvent(eventId)──► EventRegistry → vé Void, escrow mở claimRefund
+   4. Refund worker: pending → processing → succeeded | failed (retry backoff) → hàng đối soát
+   5. Notify: email + in-app cho từng người được hoàn
 ```
+
+Điều kiện để luôn hoàn được: doanh thu sơ cấp và tiền bán lại **giữ trong escrow tới sau sự kiện** (`payoutHoldUntil`). Issuer vẫn có `revoke(ticketId, reason)` cho từng vé gian lận, chỉ khi vé không Listed, có reasonCode + event.
 
 ---
 
@@ -105,12 +120,15 @@ Issuer ──cancelEvent(eventId)──► EventRegistry → mọi listing mở 
                        ▼  ▼                                    │
                      Used  Listed ─────────────────────────────┘
                               │ buy()  → Active (owner mới, transferCount++)
-   Active/Listed ── revoke() ──► Revoked     (Used và Revoked là trạng thái cuối)
+   Active/Listed ── revoke() ──► Revoked     
+   Active/Listed ── cancelEvent() ──► Void   (Used, Revoked, Void là trạng thái cuối)
 ```
 
 ### Listing (`ResaleEscrow`)
 
 `Open → Sold` · `Open → Cancelled` (seller hủy / event bị hủy) · `Open → Expired` (quá `expiry`)
+
+Tiền của listing `Sold`: `Held → Released` (sau `payoutHoldUntil`) hoặc `Held → Refunded` (event bị hủy).
 
 ---
 
@@ -121,7 +139,7 @@ Issuer ──cancelEvent(eventId)──► EventRegistry → mọi listing mở 
 function addIssuer(address issuer) external onlyAdmin;
 function createEvent(Policy calldata p, string calldata metadataURI) external onlyIssuer returns (uint256 eventId);
 function setScanner(uint256 eventId, address scanner, bool ok) external onlyEventIssuer(eventId);
-function cancelEvent(uint256 eventId, bytes32 reason) external onlyEventIssuer(eventId);
+function cancelEvent(uint256 eventId, bytes32 reason) external onlyAdmin; // chỉ sau khi platform_admin duyệt yêu cầu của issuer
 struct Policy { bool resaleAllowed; uint96 priceCapBps; uint8 maxTransfers; uint64 transferDeadline; }
 
 // TicketRegistry.sol  (ERC-721, override _update: chỉ cho mint, burn hoặc ESCROW chuyển)
@@ -139,12 +157,15 @@ function list(uint256 ticketId, uint256 price, uint64 expiry) external returns (
 function cancel(uint256 listingId) external;
 function buy(uint256 listingId) external;          // atomic swap
 function expire(uint256 listingId) external;       // ai cũng gọi được sau expiry
+function settle(uint256 ticketId, address winner, uint256 price) external onlyRelayer; // quyết toán đấu giá off-chain (D-004)
+function releasePayout(uint256 saleId) external;   // chỉ sau payoutHoldUntil và event chưa bị hủy
+function claimRefund(uint256 paymentId) external;  // chỉ khi event cancelled; mỗi payment một lần (pull pattern)
 event Listed(...); event Sold(...); event ListingCancelled(...);
 ```
 
 **Ràng buộc quyền (mục 4 của brief):** issuer **không** có hàm nào để list/buy/đổi giá/chuyển vé người khác/rút escrow; `list()` và `buy()` có `require(!eventRegistry.isIssuer(msg.sender))`. Ghi rõ trong README là ràng buộc này không chặn được issuer dùng ví khác.
 
-**Test bắt buộc (Foundry):** giá vượt trần, quá số lần chuyển, quá hạn chót, hai người mua cùng listing, issuer cố list/buy, chuyển ERC-721 trực tiếp bị chặn, reentrancy khi buy, revoke vé đang Listed, markUsed bởi ví không phải scanner. Thêm fuzz test cho `price`/`fee`.
+**Test bắt buộc (Foundry):** cancelEvent → vé Void + claimRefund đúng người/đúng số tiền + claim hai lần bị revert, releasePayout trước hạn hoặc khi event bị hủy bị revert, giá vượt trần, quá số lần chuyển, quá hạn chót, hai người mua cùng listing, issuer cố list/buy, chuyển ERC-721 trực tiếp bị chặn, reentrancy khi buy, revoke vé đang Listed, markUsed bởi ví không phải scanner. Thêm fuzz test cho `price`/`fee`.
 
 ---
 
@@ -188,12 +209,21 @@ Team1_hackathon/
 │       └── src/chain.ts           # cấu hình Fuji (chainId 43113, RPC)
 │
 ├── backend/                       # Node + TS (Fastify/NestJS) + Prisma
-│   ├── prisma/schema.prisma       # User, Wallet, TicketCache, GateToken, CheckIn, IndexerCursor
+│   ├── prisma/schema.prisma       # User, Session, OtpChallenge, RoleAssignment, AuditLog, KycVerification,
+│   │                              # Organization, Event, Order, Ticket, Auction, Bid, Payment, Refund, GateToken, CheckIn
 │   ├── src/
 │   │   ├── main.ts
 │   │   ├── config/
 │   │   ├── modules/
-│   │   │   ├── auth/              # email OTP → JWT
+│   │   │   ├── auth/              # email/SMS OTP → JWT + refresh rotation, TOTP 2FA cho nhân sự
+│   │   │   ├── rbac/              # RoleAssignment theo scope, guard @RequirePermission, cache 60s
+│   │   │   ├── audit/             # AuditLog chỉ-thêm cho thao tác đặc quyền
+│   │   │   ├── kyc/               # KycProvider interface, MockKycProvider, webhook, eligibility
+│   │   │   ├── organizer/         # đăng ký tổ chức, KYB, nhân sự, gate_staff
+│   │   │   ├── orders/            # giữ chỗ, đơn, thanh toán giả lập
+│   │   │   ├── auction/           # mở phiên, bid, scheduler đóng phiên, quyết toán
+│   │   │   ├── refund/            # hủy sự kiện, tạo Refund, worker retry, đối soát
+│   │   │   ├── notify/            # email + in-app
 │   │   │   ├── wallet/            # ví custodial demo (khóa mã hóa) / hoặc liên kết ví ngoài
 │   │   │   ├── relayer/           # gửi tx thay user, trả gas AVAX
 │   │   │   ├── tickets/           # đọc vé, list, buy (gọi relayer)
@@ -206,10 +236,12 @@ Team1_hackathon/
 │
 ├── frontend/                      # Next.js (App Router) + Tailwind + wagmi/viem
 │   ├── app/
-│   │   ├── (auth)/login/
-│   │   ├── market/                # danh sách listing, chi tiết, mua
+│   │   ├── (auth)/login/          # email OTP, TOTP cho nhân sự
+│   │   ├── account/               # hồ sơ, SĐT, ví (SIWE), eKYC, phiên đăng nhập
+│   │   ├── admin/                 # duyệt tổ chức, duyệt hủy sự kiện, vai trò, hoàn tiền lỗi, audit
+│   │   ├── market/                # danh sách phiên đấu giá, chi tiết, trả giá realtime
 │   │   ├── my-tickets/            # vé của tôi, đăng bán, hiện QR động
-│   │   ├── issuer/                # tạo event, cấu hình policy, phát hành, revoke
+│   │   ├── issuer/                # tạo event, cấu hình policy, phát hành, nhân sự, yêu cầu hủy event
 │   │   ├── scanner/               # camera quét QR, kết quả ✅/❌
 │   │   └── verify/[ticketId]/     # trang công khai: nguồn gốc + lịch sử + link explorer
 │   ├── components/
@@ -226,6 +258,8 @@ Team1_hackathon/
 ---
 
 ## 6. Pipeline phát triển (theo giai đoạn)
+
+> **Đội thực tế 3 người**: phân công và lịch sprint chính thức nằm ở [`docs/TEAM_PLAN.md`](docs/TEAM_PLAN.md). Bảng dưới giữ làm tham khảo cho bản hackathon 48 giờ.
 
 Giả định hackathon ~48 giờ, đội 4 người: **SC** (smart contract), **BE** (backend), **FE** (frontend), **PM/Pitch** (research, demo, slide). Điều chỉnh mốc giờ theo thời lượng thực tế.
 
@@ -262,7 +296,7 @@ merge vào main
   └─ backend  → Render/Railway (Postgres managed) hoặc chạy local + ngrok khi demo
 ```
 
-Biến môi trường (`.env.example`): `FUJI_RPC_URL`, `DEPLOYER_PRIVATE_KEY`, `RELAYER_PRIVATE_KEY`, `GATE_HMAC_SECRET`, `DATABASE_URL`, `JWT_SECRET`, `NEXT_PUBLIC_API_URL`. Không commit khóa; ví deployer/relayer chỉ chứa AVAX testnet từ faucet.
+Biến môi trường (`.env.example`): `FUJI_RPC_URL`, `DEPLOYER_PRIVATE_KEY`, `RELAYER_PRIVATE_KEY`, `GATE_HMAC_SECRET`, `DATABASE_URL`, `JWT_SECRET`, `KYC_ID_PEPPER`, `KYC_WEBHOOK_SECRET`, `FIELD_ENCRYPTION_KEY`, `NEXT_PUBLIC_API_URL`. Không commit khóa; ví deployer/relayer chỉ chứa AVAX testnet từ faucet.
 
 ---
 
@@ -284,4 +318,6 @@ Biến môi trường (`.env.example`): `FUJI_RPC_URL`, `DEPLOYER_PRIVATE_KEY`, 
 - **Nguồn sự thật khi check-in:** DB khóa nguyên tử nhanh hơn chain; chain được cập nhật sau qua `markUsed`. Nếu tx `markUsed` lỗi, cần retry queue — ghi rõ trong threat model.
 - **Ví custodial là demo-only:** nói thẳng khi pitch; hướng sản phẩm thật là embedded/smart wallet.
 - **Indexer lệch trạng thái:** UI luôn đọc lại owner on-chain trước khi cấp gate token, không tin hoàn toàn vào cache.
+- **Hoàn tiền khi hủy sự kiện:** chỉ an toàn nếu tiền chưa giải ngân — test bắt buộc `releasePayout` không chạy được trước `payoutHoldUntil`.
+- **Dữ liệu eKYC:** không lưu ảnh giấy tờ; quét log định kỳ để chắc không có CCCD/SĐT bản rõ.
 - **Phụ thuộc mạng khi demo:** chuẩn bị video quay sẵn và ví đã nạp đủ AVAX testnet + MockStable.
