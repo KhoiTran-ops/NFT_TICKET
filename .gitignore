@@ -1,1 +1,23 @@
 .claude/settings.local.json
+
+# Dependencies / build
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# Foundry
+contracts/out/
+contracts/cache/
+contracts/broadcast/*/31337/
+
+# Env / secrets — chỉ commit .env.example
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+*.log

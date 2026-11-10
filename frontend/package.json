@@ -1,0 +1,15 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Web Next.js. Khung tối thiểu; UI dựng Next.js + Tailwind + MSW ở S0-10 (TIC-36).",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@nft-ticket/shared": "workspace:*"
+  }
+}
