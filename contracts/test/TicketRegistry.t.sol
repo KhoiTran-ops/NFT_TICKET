@@ -160,9 +160,7 @@ contract TicketRegistryTest is BaseTest {
         uint256 id = _issue(eventId, alice);
         vm.startPrank(scanner);
         tickets.markUsed(id);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidTicketStatus.selector, id, uint8(ITicketRegistry.Status.Used))
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidTicketStatus.selector, id, uint8(ITicketRegistry.Status.Used)));
         tickets.markUsed(id);
         vm.stopPrank();
     }
@@ -171,9 +169,7 @@ contract TicketRegistryTest is BaseTest {
     function test_RevertWhen_MarkUsedListedTicket() public {
         uint256 id = _issue(eventId, alice);
         _list(id);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidTicketStatus.selector, id, uint8(ITicketRegistry.Status.Listed))
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidTicketStatus.selector, id, uint8(ITicketRegistry.Status.Listed)));
         vm.prank(scanner);
         tickets.markUsed(id);
     }
@@ -220,9 +216,7 @@ contract TicketRegistryTest is BaseTest {
 
     function test_RevertWhen_EscrowTransferNotListed() public {
         uint256 id = _issue(eventId, alice);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidTicketStatus.selector, id, uint8(ITicketRegistry.Status.Active))
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidTicketStatus.selector, id, uint8(ITicketRegistry.Status.Active)));
         vm.prank(escrow);
         tickets.escrowTransfer(id, alice, bob);
     }
@@ -306,9 +300,7 @@ contract TicketRegistryTest is BaseTest {
     function test_RevertWhen_RevokeListedTicket() public {
         uint256 id = _issue(eventId, alice);
         _list(id);
-        vm.expectRevert(
-            abi.encodeWithSelector(InvalidTicketStatus.selector, id, uint8(ITicketRegistry.Status.Listed))
-        );
+        vm.expectRevert(abi.encodeWithSelector(InvalidTicketStatus.selector, id, uint8(ITicketRegistry.Status.Listed)));
         vm.prank(issuer);
         tickets.revoke(id, "fraud");
     }

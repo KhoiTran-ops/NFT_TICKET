@@ -90,7 +90,9 @@ contract EventRegistryTest is BaseTest {
         events.removeIssuer(issuer);
         IEventRegistry.Policy memory p = _policy();
         vm.expectRevert(
-            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, issuer, events.ISSUER_ROLE())
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, issuer, events.ISSUER_ROLE()
+            )
         );
         vm.prank(issuer);
         events.createEvent(p, "x");
