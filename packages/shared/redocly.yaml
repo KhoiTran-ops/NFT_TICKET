@@ -1,0 +1,8 @@
+extends:
+  - recommended
+rules:
+  # 202/204 không cần body; endpoint công khai và webhook có `security: []` hoặc scheme riêng (đã kiểm ở test).
+  operation-4xx-response: error
+  security-defined: error
+  no-server-example.com: off  # server localhost cho dev local là chủ ý
+  info-license-strict: off

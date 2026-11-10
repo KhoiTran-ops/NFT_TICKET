@@ -1,0 +1,1217 @@
+openapi: 3.1.0
+info:
+  title: NFT Ticket API
+  version: 0.1.0
+  summary: OpenAPI v0 — auth, events, orders (TIC-29)
+  description: |
+    Hợp đồng API v0. Nguồn nghiệp vụ: `PRODUCT_CONTEXT.md` (mục 2, 3.1, 3.3, 5.1, 5.7, 6).
+    Đổi file này = đổi hợp đồng → PR riêng, 2 approve (WORKING_RULES 0.5).
+
+    **Phân quyền (PRODUCT_CONTEXT 2.3) — từ chối mặc định.** Mỗi operation PHẢI có:
+    - `security` (rỗng `[]` chỉ dành cho endpoint công khai hoặc webhook ký chữ ký);
+    - `x-authz`: `permission` (theo ma trận 2.2, hoặc `public` / `self` / `system`), `scope`
+      (`public` | `own` | `organization` | `event` | `platform`), `minLevel` (5.4/5.6),
+      `mfa` (nhân sự bắt buộc TOTP), `audit` (ghi AuditLog + bắt buộc lý do);
+    - `x-error-codes`: danh sách mã lỗi có thể trả, mỗi mã phải có response HTTP tương ứng
+      (kiểm bằng `packages/shared/test/openapi.test.ts`).
+
+    Thứ tự kiểm tra ở backend: phiên → quyền trong phạm vi → sở hữu → trạng thái → cấp xác minh.
+    Ngoài phạm vi trả `404 NOT_FOUND` để không lộ sự tồn tại.
+
+    **Không có endpoint hủy/hoàn vé cho người dùng (D-001).** Hoàn tiền chỉ sinh ra khi
+    `platform_admin` duyệt hủy sự kiện (`/event-cancellations/{cancellationId}/approve`).
+
+    Quy ước: tiền là số nguyên đơn vị nhỏ nhất (VND); thời gian ISO 8601 UTC.
+    Phiên đăng nhập dùng cookie `HttpOnly; Secure; SameSite=Lax`; request thay đổi dữ liệu
+    gửi kèm header `X-CSRF-Token` (5.1).
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: http://localhost:4000
+    description: Local
+tags:
+  - name: auth
+    description: Email OTP, phiên, TOTP 2FA, xác thực SĐT (PRODUCT_CONTEXT 5.1)
+  - name: events
+    description: Sự kiện, hạng vé, xuất bản, yêu cầu/duyệt hủy sự kiện (PRODUCT_CONTEXT 3.1, 3.3)
+  - name: orders
+    description: Giữ chỗ, đơn sơ cấp, thanh toán giả lập (PRODUCT_CONTEXT 3.1)
+
+security:
+  - accessCookie: []
+
+paths:
+  # ------------------------------------------------------------------ auth
+  /auth/csrf:
+    get:
+      tags: [auth]
+      operationId: getCsrfToken
+      summary: Lấy CSRF token cho request thay đổi dữ liệu
+      security: []
+      x-authz: { permission: public, scope: public, minLevel: L0, mfa: false, audit: false }
+      x-error-codes: [RATE_LIMITED, INTERNAL_ERROR]
+      responses:
+        "200":
+          description: CSRF token (đồng thời đặt cookie `csrf_token`).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [csrfToken]
+                properties:
+                  csrfToken: { type: string }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/otp/request:
+    post:
+      tags: [auth]
+      operationId: requestEmailOtp
+      summary: Gửi OTP 6 số qua email (đăng ký hoặc đăng nhập)
+      description: |
+        Luôn trả 202 dù email có tài khoản hay không (không lộ sự tồn tại).
+        OTP hết hạn 5 phút; gửi lại sau 60 giây; tối đa 5 mã/giờ/email và giới hạn theo IP.
+      security: []
+      x-authz: { permission: public, scope: public, minLevel: L0, mfa: false, audit: false }
+      x-error-codes: [VALIDATION_ERROR, CSRF_INVALID, RATE_LIMITED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        "202":
+          description: Đã nhận yêu cầu.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resendAvailableAt]
+                properties:
+                  resendAvailableAt: { type: string, format: date-time }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/otp/verify:
+    post:
+      tags: [auth]
+      operationId: verifyEmailOtp
+      summary: Xác thực OTP email, tạo phiên
+      description: |
+        OTP dùng một lần; sai 5 lần thì khóa mã và khóa đăng nhập 15 phút (`OTP_LOCKED`).
+        Thành công: đặt cookie `access_token` (JWT 15 phút) và `refresh_token` (30 ngày, xoay vòng).
+        Tài khoản có vai trò nhân sự: `mfaRequired = true`, phải gọi `/auth/mfa/totp/verify`
+        trước khi dùng quyền nhân sự.
+      security: []
+      x-authz: { permission: public, scope: public, minLevel: L0, mfa: false, audit: false }
+      x-error-codes: [VALIDATION_ERROR, OTP_INVALID, CSRF_INVALID, ACCOUNT_LOCKED, OTP_LOCKED, RATE_LIMITED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email: { type: string, format: email }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200":
+          description: Đăng nhập thành công.
+          headers:
+            Set-Cookie:
+              description: "`access_token`, `refresh_token` (HttpOnly; Secure; SameSite=Lax)."
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      operationId: refreshSession
+      summary: Xoay vòng refresh token
+      description: |
+        Mỗi lần dùng cấp refresh token mới. Phát hiện dùng lại token cũ → thu hồi cả chuỗi, trả `AUTH_REQUIRED`.
+      security:
+        - refreshCookie: []
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [AUTH_REQUIRED, CSRF_INVALID, ACCOUNT_LOCKED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Phiên mới.
+          headers:
+            Set-Cookie:
+              description: "`access_token`, `refresh_token` mới."
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      operationId: logout
+      summary: Đăng xuất thiết bị hiện tại (thu hồi refresh token hiện tại)
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [AUTH_REQUIRED, CSRF_INVALID, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204": { description: "Đã đăng xuất, cookie bị xóa." }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/logout-all:
+    post:
+      tags: [auth]
+      operationId: logoutAllDevices
+      summary: Đăng xuất mọi thiết bị (tăng `session_version`)
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [AUTH_REQUIRED, CSRF_INVALID, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204": { description: "Mọi phiên cũ bị vô hiệu." }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/session:
+    get:
+      tags: [auth]
+      operationId: getSession
+      summary: Phiên hiện tại, vai trò và cấp xác minh
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [AUTH_REQUIRED, ACCOUNT_LOCKED, INTERNAL_ERROR]
+      responses:
+        "200":
+          description: Phiên hiện tại.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/mfa/totp/setup:
+    post:
+      tags: [auth]
+      operationId: setupTotp
+      summary: Bắt đầu bật TOTP 2FA (nhân sự bắt buộc)
+      description: Trả URI `otpauth://` một lần duy nhất; secret lưu mã hóa ở backend, không log.
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: true }
+      x-error-codes: [AUTH_REQUIRED, CSRF_INVALID, INVALID_STATE, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: Thông tin để quét bằng ứng dụng authenticator.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [otpauthUri]
+                properties:
+                  otpauthUri: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/mfa/totp/activate:
+    post:
+      tags: [auth]
+      operationId: activateTotp
+      summary: Xác nhận mã TOTP đầu tiên để kích hoạt 2FA
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: true }
+      x-error-codes: [VALIDATION_ERROR, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, INVALID_STATE, OTP_LOCKED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TotpCode" }
+      responses:
+        "204": { description: "Đã bật 2FA." }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/mfa/totp/verify:
+    post:
+      tags: [auth]
+      operationId: verifyTotp
+      summary: Nhập mã TOTP cho phiên (đăng nhập nhân sự hoặc xác thực lại trước thao tác đặc quyền)
+      description: |
+        Phiên nhân sự tối đa 12 giờ. Thao tác đặc quyền yêu cầu xác thực lại nếu lần cuối quá 15 phút
+        (backend trả `MFA_REQUIRED`).
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [VALIDATION_ERROR, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, OTP_LOCKED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TotpCode" }
+      responses:
+        "200":
+          description: Phiên đã qua 2FA.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/phone/otp/request:
+    post:
+      tags: [auth]
+      operationId: requestPhoneOtp
+      summary: Gửi OTP SMS để xác thực SĐT (giả lập ở MVP)
+      description: Một SĐT chỉ gắn một tài khoản; SĐT đã gắn tài khoản khác vẫn trả 202 (không lộ).
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, CSRF_INVALID, ACCOUNT_LOCKED, RATE_LIMITED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone: { type: string, description: "Định dạng E.164, ví dụ +849xxxxxxxx" }
+      responses:
+        "202":
+          description: Đã nhận yêu cầu.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resendAvailableAt]
+                properties:
+                  resendAvailableAt: { type: string, format: date-time }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /auth/phone/otp/verify:
+    post:
+      tags: [auth]
+      operationId: verifyPhoneOtp
+      summary: Xác thực OTP SMS
+      x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [VALIDATION_ERROR, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, ACCOUNT_LOCKED, OTP_LOCKED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, code]
+              properties:
+                phone: { type: string }
+                code: { type: string, pattern: "^[0-9]{6}$" }
+      responses:
+        "200":
+          description: SĐT đã xác thực; trả phiên với cấp xác minh mới.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  # ---------------------------------------------------------------- events
+  /events:
+    get:
+      tags: [events]
+      operationId: listPublicEvents
+      summary: Danh sách sự kiện công khai (đã xuất bản)
+      security:
+        - {}
+        - accessCookie: []
+      x-authz: { permission: "event:read_public", scope: public, minLevel: L0, mfa: false, audit: false }
+      x-error-codes: [VALIDATION_ERROR, RATE_LIMITED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Một trang sự kiện.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Event" }
+                  nextCursor: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /events/{eventId}:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    get:
+      tags: [events]
+      operationId: getEvent
+      summary: Chi tiết sự kiện và hạng vé
+      description: |
+        Khách thấy sự kiện `published`, `cancel_requested`, `cancelled`, `completed`.
+        Sự kiện `draft` chỉ hiện với nhân sự tổ chức sở hữu; người khác nhận `404`.
+      security:
+        - {}
+        - accessCookie: []
+      x-authz: { permission: "event:read_public", scope: public, minLevel: L0, mfa: false, audit: false }
+      x-error-codes: [NOT_FOUND, INTERNAL_ERROR]
+      responses:
+        "200":
+          description: Sự kiện.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    patch:
+      tags: [events]
+      operationId: updateDraftEvent
+      summary: Sửa sự kiện nháp
+      x-authz: { permission: "event:update_draft", scope: organization, roles: [org_owner, org_manager], minLevel: L1, mfa: true, audit: false }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventUpdate" }
+      responses:
+        "200":
+          description: Sự kiện sau khi sửa.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /organizations/{orgId}/events:
+    parameters:
+      - $ref: "#/components/parameters/OrgId"
+    post:
+      tags: [events]
+      operationId: createEvent
+      summary: Tạo sự kiện nháp cho tổ chức
+      x-authz: { permission: "event:create", scope: organization, roles: [org_owner, org_manager], minLevel: L1, mfa: true, audit: false }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventCreate" }
+      responses:
+        "201":
+          description: Sự kiện nháp đã tạo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /events/{eventId}/tiers:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    post:
+      tags: [events]
+      operationId: createTier
+      summary: Thêm hạng vé cho sự kiện nháp
+      x-authz: { permission: "tier:manage", scope: organization, roles: [org_owner, org_manager], minLevel: L1, mfa: true, audit: false }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketTierInput" }
+      responses:
+        "201":
+          description: Hạng vé đã tạo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketTier" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /events/{eventId}/tiers/{tierId}:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+      - $ref: "#/components/parameters/TierId"
+    patch:
+      tags: [events]
+      operationId: updateTier
+      summary: Sửa hạng vé của sự kiện nháp
+      x-authz: { permission: "tier:manage", scope: organization, roles: [org_owner, org_manager], minLevel: L1, mfa: true, audit: false }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TicketTierInput" }
+      responses:
+        "200":
+          description: Hạng vé sau khi sửa.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TicketTier" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /events/{eventId}/publish:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    post:
+      tags: [events]
+      operationId: publishEvent
+      summary: Xuất bản sự kiện (draft → published)
+      x-authz: { permission: "event:publish", scope: organization, roles: [org_owner], minLevel: L1, mfa: true, audit: true }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonInput" }
+      responses:
+        "200":
+          description: Sự kiện đã xuất bản.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventDetail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /events/{eventId}/cancel-request:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    post:
+      tags: [events]
+      operationId: requestEventCancellation
+      summary: Ban tổ chức gửi yêu cầu hủy SỰ KIỆN (không phải hủy vé)
+      description: |
+        Sự kiện `published` → `cancel_requested`: dừng bán sơ cấp, không cho mở phiên mới.
+        Vé vẫn dùng được nếu yêu cầu bị từ chối (PRODUCT_CONTEXT 3.3 bước 1).
+      x-authz: { permission: "event:cancel_request", scope: organization, roles: [org_owner], minLevel: L1, mfa: true, audit: true }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 10, maxLength: 2000 }
+                evidenceUrls:
+                  type: array
+                  items: { type: string, format: uri }
+      responses:
+        "201":
+          description: Yêu cầu hủy đã tạo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventCancellation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /event-cancellations/{cancellationId}:
+    parameters:
+      - $ref: "#/components/parameters/CancellationId"
+    get:
+      tags: [events]
+      operationId: getEventCancellation
+      summary: Xem yêu cầu hủy và số liệu ảnh hưởng (số vé, đơn, phiên đang chạy, tổng tiền hoàn dự kiến)
+      x-authz: { permission: "event:cancel_approve", scope: platform, roles: [platform_admin], minLevel: L1, mfa: true, audit: false }
+      x-error-codes: [AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, NOT_FOUND, INTERNAL_ERROR]
+      responses:
+        "200":
+          description: Yêu cầu hủy.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventCancellation" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /event-cancellations/{cancellationId}/approve:
+    parameters:
+      - $ref: "#/components/parameters/CancellationId"
+    post:
+      tags: [events]
+      operationId: approveEventCancellation
+      summary: platform_admin duyệt hủy sự kiện → sinh hoàn tiền 100%
+      description: |
+        Trong một giao dịch nghiệp vụ: sự kiện `cancelled`, giải phóng giữ chỗ, hủy phiên đấu giá
+        (`event_cancelled`), thu hồi gate token, vé → `void_pending_refund`; tạo một `Refund` cho mỗi khoản
+        thanh toán chưa giải ngân (khóa `refund:{payment_id}`). Người gửi yêu cầu không được tự duyệt
+        (tách nhiệm vụ 2.3.4) → `ROLE_FORBIDDEN`. Cần TOTP gần đây.
+      x-authz: { permission: "event:cancel_approve", scope: platform, roles: [platform_admin], minLevel: L1, mfa: true, audit: true }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonInput" }
+      responses:
+        "200":
+          description: Đã duyệt.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventCancellation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /event-cancellations/{cancellationId}/reject:
+    parameters:
+      - $ref: "#/components/parameters/CancellationId"
+    post:
+      tags: [events]
+      operationId: rejectEventCancellation
+      summary: platform_admin từ chối hủy → sự kiện trở lại `published`
+      x-authz: { permission: "event:cancel_approve", scope: platform, roles: [platform_admin], minLevel: L1, mfa: true, audit: true }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReasonInput" }
+      responses:
+        "200":
+          description: Đã từ chối.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventCancellation" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  # ---------------------------------------------------------------- orders
+  /orders:
+    post:
+      tags: [orders]
+      operationId: createOrder
+      summary: Giữ chỗ và tạo đơn sơ cấp giá cố định
+      description: |
+        Kiểm tra điều kiện giao dịch (5.6): L2, hoặc L3 nếu sự kiện `kyc_required`; trong cửa sổ bán;
+        chưa vượt hạn mức; sự kiện `published`. Chụp giá, phí, tổng tiền, phiên bản chính sách vào đơn.
+        Nhân sự ban tổ chức VẪN được mua sơ cấp như khách (2.3.4) — không trả `ORGANIZER_CONFLICT`.
+        Người mua phải xác nhận câu cam kết "Vé không hoàn tiền, trừ khi sự kiện bị hủy…" (3.1 bước 1).
+        Thời hạn giữ chỗ do backend cấu hình (`expiresAt`); giá trị chưa chốt trong PRODUCT_CONTEXT.
+      x-authz: { permission: "order:create", scope: own, minLevel: L2, mfa: false, audit: false }
+      x-error-codes:
+        - VALIDATION_ERROR
+        - AUTH_REQUIRED
+        - ACCOUNT_LOCKED
+        - PHONE_NOT_VERIFIED
+        - WALLET_NOT_LINKED
+        - KYC_REQUIRED
+        - KYC_PENDING
+        - KYC_REJECTED
+        - KYC_REVOKED
+        - ROLE_FORBIDDEN
+        - CSRF_INVALID
+        - NOT_FOUND
+        - PURCHASE_LIMIT_REACHED
+        - SALE_WINDOW_CLOSED
+        - EVENT_NOT_ACTIVE
+        - SOLD_OUT
+        - IDEMPOTENCY_CONFLICT
+        - INTERNAL_ERROR
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tierId, quantity, policyVersion, acceptNoRefundPolicy]
+              properties:
+                tierId: { type: string }
+                quantity: { type: integer, minimum: 1 }
+                policyVersion:
+                  type: string
+                  description: Phiên bản chính sách người mua đã xem.
+                acceptNoRefundPolicy:
+                  type: boolean
+                  const: true
+                  description: Người mua đã tích xác nhận câu cam kết không hoàn tiền.
+      responses:
+        "201":
+          description: Đơn ở trạng thái `reserved`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    get:
+      tags: [orders]
+      operationId: listMyOrders
+      summary: Đơn của tôi
+      x-authz: { permission: "order:read", scope: own, minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, ACCOUNT_LOCKED, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Một trang đơn của người gọi.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Order" }
+                  nextCursor: { type: [string, "null"] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /orders/{orderId}:
+    parameters:
+      - $ref: "#/components/parameters/OrderId"
+    get:
+      tags: [orders]
+      operationId: getOrder
+      summary: Chi tiết đơn
+      description: |
+        `user`: chỉ đơn của mình. `platform_operator`, `platform_admin`: mọi đơn (chỉ đọc, nhân sự cần 2FA).
+        Ngoài phạm vi → `404`.
+      x-authz: { permission: "order:read", scope: own, roles: [user, platform_operator, platform_admin], minLevel: L1, mfa: false, audit: false }
+      x-error-codes: [AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, NOT_FOUND, INTERNAL_ERROR]
+      responses:
+        "200":
+          description: Đơn.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /orders/{orderId}/payments:
+    parameters:
+      - $ref: "#/components/parameters/OrderId"
+    post:
+      tags: [orders]
+      operationId: createPayment
+      summary: Khởi tạo thanh toán (giả lập ở MVP) cho đơn đang giữ chỗ
+      x-authz: { permission: "order:create", scope: own, minLevel: L2, mfa: false, audit: false }
+      x-error-codes: [AUTH_REQUIRED, ACCOUNT_LOCKED, CSRF_INVALID, NOT_FOUND, RESERVATION_EXPIRED, INVALID_STATE, IDEMPOTENCY_CONFLICT, INTERNAL_ERROR]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "201":
+          description: Phiên thanh toán.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaymentSession" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /webhooks/payments:
+    post:
+      tags: [orders]
+      operationId: paymentWebhook
+      summary: Callback từ nhà cung cấp thanh toán (giả lập)
+      description: |
+        Không dùng phiên người dùng; xác thực bằng chữ ký HMAC header `X-Webhook-Signature`.
+        Chống lặp theo `providerEventId`: callback lặp trả 200 và không ghi nhận lần hai.
+        Đối chiếu mã đơn, số tiền, tiền tệ. Thanh toán đến sau khi hết giữ chỗ hoặc phát hành lỗi →
+        đơn `exception` (hoàn tiền kỹ thuật, 3.1 bước 3).
+      security:
+        - webhookSignature: []
+      x-authz: { permission: system, scope: platform, minLevel: L0, mfa: false, audit: false }
+      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, INTERNAL_ERROR]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [providerEventId, orderId, amount, currency, status]
+              properties:
+                providerEventId: { type: string }
+                orderId: { type: string }
+                amount: { $ref: "#/components/schemas/MinorUnits" }
+                currency: { $ref: "#/components/schemas/Currency" }
+                status: { type: string, enum: [succeeded, failed] }
+      responses:
+        "200": { description: "Đã xử lý (hoặc đã xử lý trước đó)." }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+components:
+  securitySchemes:
+    accessCookie:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: JWT 15 phút, chỉ chứa `user_id` + `session_version`; quyền nạp mỗi request (2.3.5).
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: Refresh token 30 ngày, xoay vòng mỗi lần dùng.
+    webhookSignature:
+      type: apiKey
+      in: header
+      name: X-Webhook-Signature
+      description: HMAC-SHA256 của body bằng secret của nhà cung cấp.
+
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Khóa chống lặp do client sinh (UUID). Cùng khóa + cùng body trả lại kết quả cũ.
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: { type: string }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema: { type: string }
+    TierId:
+      name: tierId
+      in: path
+      required: true
+      schema: { type: string }
+    OrgId:
+      name: orgId
+      in: path
+      required: true
+      schema: { type: string }
+    OrderId:
+      name: orderId
+      in: path
+      required: true
+      schema: { type: string }
+    CancellationId:
+      name: cancellationId
+      in: path
+      required: true
+      schema: { type: string }
+
+  responses:
+    BadRequest:
+      description: "Đầu vào không hợp lệ: VALIDATION_ERROR, OTP_INVALID."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: "Chưa đăng nhập / phiên không hợp lệ / cần TOTP: AUTH_REQUIRED, MFA_REQUIRED."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: |
+        Bị chặn: ACCOUNT_LOCKED, PHONE_NOT_VERIFIED, WALLET_NOT_LINKED, KYC_REQUIRED, KYC_PENDING,
+        KYC_REJECTED, KYC_REVOKED, ROLE_FORBIDDEN, ORGANIZER_CONFLICT, CSRF_INVALID.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: "Không tồn tại hoặc ngoài phạm vi: NOT_FOUND."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: |
+        Xung đột nghiệp vụ: PURCHASE_LIMIT_REACHED, SALE_WINDOW_CLOSED, EVENT_NOT_ACTIVE, SOLD_OUT,
+        RESERVATION_EXPIRED, INVALID_STATE, IDEMPOTENCY_CONFLICT.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManyRequests:
+      description: "Vượt giới hạn: RATE_LIMITED, OTP_LOCKED."
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InternalError:
+      description: "Lỗi hệ thống: INTERNAL_ERROR."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    MinorUnits:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Số tiền theo đơn vị nhỏ nhất (VND).
+    Currency:
+      type: string
+      enum: [VND]
+    VerificationLevel:
+      type: string
+      enum: [L0, L1, L2, L3]
+    Role:
+      type: string
+      enum: [guest, user, org_owner, org_manager, gate_staff, platform_operator, kyc_reviewer, platform_admin]
+    ScopeType:
+      type: string
+      enum: [platform, organization, event]
+    KycStatus:
+      type: string
+      enum: [not_started, pending, verified, rejected, revoked]
+    EventStatus:
+      type: string
+      enum: [draft, published, cancel_requested, cancelled, completed]
+    EventCancellationStatus:
+      type: string
+      enum: [requested, approved, rejected]
+    OrderStatus:
+      type: string
+      enum: [reserved, paid, issued, expired, payment_failed, exception]
+      description: Đề xuất v0, BE xác nhận ở S0-05. Không có trạng thái người dùng hủy (D-001).
+    ErrorCode:
+      type: string
+      description: PRODUCT_CONTEXT 5.7 + mã chung đề xuất (xem `GENERAL_ERROR_CODES` trong types.ts).
+      enum:
+        - AUTH_REQUIRED
+        - MFA_REQUIRED
+        - ACCOUNT_LOCKED
+        - PHONE_NOT_VERIFIED
+        - WALLET_NOT_LINKED
+        - KYC_REQUIRED
+        - KYC_PENDING
+        - KYC_REJECTED
+        - KYC_REVOKED
+        - ROLE_FORBIDDEN
+        - ORGANIZER_CONFLICT
+        - PURCHASE_LIMIT_REACHED
+        - SALE_WINDOW_CLOSED
+        - EVENT_NOT_ACTIVE
+        - VALIDATION_ERROR
+        - OTP_INVALID
+        - CSRF_INVALID
+        - NOT_FOUND
+        - SOLD_OUT
+        - RESERVATION_EXPIRED
+        - INVALID_STATE
+        - IDEMPOTENCY_CONFLICT
+        - OTP_LOCKED
+        - RATE_LIMITED
+        - INTERNAL_ERROR
+    ErrorAction:
+      type: string
+      enum: [login, enter_totp, contact_support, verify_phone, link_wallet, start_kyc, wait_kyc, retry_kyc, none]
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { $ref: "#/components/schemas/ErrorCode" }
+        message:
+          type: string
+          description: Thông điệp cho người dùng, không chứa PII.
+        action: { $ref: "#/components/schemas/ErrorAction" }
+        correlationId: { type: string }
+
+    RoleAssignment:
+      type: object
+      required: [role, scopeType]
+      properties:
+        role: { $ref: "#/components/schemas/Role" }
+        scopeType: { $ref: "#/components/schemas/ScopeType" }
+        scopeId: { type: [string, "null"] }
+        expiresAt: { type: [string, "null"], format: date-time }
+    Session:
+      type: object
+      required: [user, roles, verificationLevel, mfaRequired, mfaVerified]
+      properties:
+        user:
+          type: object
+          required: [id, displayName, emailVerified, phoneVerified, kycStatus]
+          description: Chỉ dữ liệu của chính người gọi; không trả email/SĐT bản rõ ở đây.
+          properties:
+            id: { type: string }
+            displayName: { type: string }
+            emailVerified: { type: boolean }
+            phoneVerified: { type: boolean }
+            walletLinked: { type: boolean }
+            kycStatus: { $ref: "#/components/schemas/KycStatus" }
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/RoleAssignment" }
+        verificationLevel: { $ref: "#/components/schemas/VerificationLevel" }
+        mfaRequired:
+          type: boolean
+          description: "`true` nếu có vai trò nhân sự (bắt buộc TOTP)."
+        mfaVerified: { type: boolean }
+        accessTokenExpiresAt: { type: string, format: date-time }
+    TotpCode:
+      type: object
+      required: [code]
+      properties:
+        code: { type: string, pattern: "^[0-9]{6}$" }
+    ReasonInput:
+      type: object
+      required: [reason]
+      description: Thao tác đặc quyền bắt buộc lý do, ghi AuditLog (2.3.7).
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 2000 }
+
+    Event:
+      type: object
+      required: [id, organizationId, name, status, startsAt, endsAt, timezone, kycRequired]
+      properties:
+        id: { type: string }
+        organizationId: { type: string }
+        name: { type: string }
+        venue: { type: string }
+        status: { $ref: "#/components/schemas/EventStatus" }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        timezone:
+          type: string
+          description: Múi giờ IANA để hiển thị (ví dụ `Asia/Ho_Chi_Minh`); dữ liệu lưu UTC.
+        kycRequired:
+          type: boolean
+          description: "`true` thì mua sơ cấp cần L3."
+    EventDetail:
+      allOf:
+        - $ref: "#/components/schemas/Event"
+        - type: object
+          required: [tiers, policyVersion]
+          properties:
+            description: { type: string }
+            policyVersion: { type: string }
+            tiers:
+              type: array
+              items: { $ref: "#/components/schemas/TicketTier" }
+    EventCreate:
+      type: object
+      required: [name, startsAt, endsAt, timezone, kycRequired]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 10000 }
+        venue: { type: string, maxLength: 500 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        timezone: { type: string }
+        kycRequired: { type: boolean }
+    EventUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string, maxLength: 10000 }
+        venue: { type: string, maxLength: 500 }
+        startsAt: { type: string, format: date-time }
+        endsAt: { type: string, format: date-time }
+        timezone: { type: string }
+        kycRequired: { type: boolean }
+    TicketTier:
+      type: object
+      required: [id, eventId, name, basePrice, currency, totalQuantity, availableQuantity, saleStartsAt, saleEndsAt, perAccountLimit]
+      properties:
+        id: { type: string }
+        eventId: { type: string }
+        name: { type: string }
+        basePrice:
+          $ref: "#/components/schemas/MinorUnits"
+        currency: { $ref: "#/components/schemas/Currency" }
+        totalQuantity: { type: integer, minimum: 1 }
+        availableQuantity: { type: integer, minimum: 0 }
+        saleStartsAt: { type: string, format: date-time }
+        saleEndsAt: { type: string, format: date-time }
+        perAccountLimit: { type: integer, minimum: 1 }
+    TicketTierInput:
+      type: object
+      required: [name, basePrice, currency, totalQuantity, saleStartsAt, saleEndsAt, perAccountLimit]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        basePrice: { $ref: "#/components/schemas/MinorUnits" }
+        currency: { $ref: "#/components/schemas/Currency" }
+        totalQuantity: { type: integer, minimum: 1 }
+        saleStartsAt: { type: string, format: date-time }
+        saleEndsAt: { type: string, format: date-time }
+        perAccountLimit: { type: integer, minimum: 1 }
+    EventCancellation:
+      type: object
+      required: [id, eventId, status, requestedBy, reason, requestedAt]
+      properties:
+        id: { type: string }
+        eventId: { type: string }
+        status: { $ref: "#/components/schemas/EventCancellationStatus" }
+        requestedBy: { type: string, description: user id }
+        reason: { type: string }
+        evidenceUrls:
+          type: array
+          items: { type: string, format: uri }
+        requestedAt: { type: string, format: date-time }
+        decidedBy: { type: [string, "null"] }
+        decisionReason: { type: [string, "null"] }
+        decidedAt: { type: [string, "null"], format: date-time }
+        impact:
+          type: object
+          description: Số liệu ảnh hưởng để admin xem trước khi duyệt.
+          properties:
+            ticketCount: { type: integer }
+            orderCount: { type: integer }
+            openAuctionCount: { type: integer }
+            estimatedRefundTotal: { $ref: "#/components/schemas/MinorUnits" }
+            currency: { $ref: "#/components/schemas/Currency" }
+
+    Order:
+      type: object
+      required: [id, eventId, tierId, quantity, status, unitPrice, fee, total, currency, policyVersion, createdAt]
+      properties:
+        id: { type: string }
+        eventId: { type: string }
+        tierId: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        status: { $ref: "#/components/schemas/OrderStatus" }
+        unitPrice: { $ref: "#/components/schemas/MinorUnits" }
+        fee:
+          $ref: "#/components/schemas/MinorUnits"
+        total: { $ref: "#/components/schemas/MinorUnits" }
+        currency: { $ref: "#/components/schemas/Currency" }
+        policyVersion:
+          type: string
+          description: Phiên bản chính sách chụp lúc mua.
+        expiresAt:
+          type: [string, "null"]
+          format: date-time
+          description: Hạn giữ chỗ khi `status = reserved`.
+        createdAt: { type: string, format: date-time }
+        ticketIds:
+          type: array
+          items: { type: string }
+          description: Có khi `status = issued`.
+    PaymentSession:
+      type: object
+      required: [paymentId, orderId, amount, currency, redirectUrl]
+      properties:
+        paymentId: { type: string }
+        orderId: { type: string }
+        amount: { $ref: "#/components/schemas/MinorUnits" }
+        currency: { $ref: "#/components/schemas/Currency" }
+        redirectUrl:
+          type: string
+          format: uri
+          description: Trang thanh toán giả lập.

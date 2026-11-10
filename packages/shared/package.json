@@ -13,10 +13,18 @@
     },
     "./openapi.yaml": "./openapi.yaml"
   },
-  "files": ["dist", "openapi.yaml"],
+  "files": [
+    "dist",
+    "openapi.yaml"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run",
+    "openapi:lint": "redocly lint openapi.yaml"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.77.0",
+    "yaml": "2.9.1"
   }
 }
