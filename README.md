@@ -38,3 +38,12 @@ pnpm contracts:test
 `pnpm build` không gọi `forge` để máy không cài Foundry vẫn build được app; contracts được build/test riêng ở CI (`.github/workflows/contracts.yml`).
 
 Biến môi trường: sao `.env.example` thành `.env`. Không commit `.env`.
+
+## CI
+
+GitHub Actions chạy trên mỗi PR và mỗi push vào `main`:
+
+- `.github/workflows/contracts.yml`: `forge fmt --check` → `forge build` → `forge test` (profile `ci`).
+- `.github/workflows/apps.yml`: `pnpm install --frozen-lockfile` → build → lint → typecheck → test.
+
+`main` cần branch protection (1 approve, 2 job trên bắt buộc xanh) — bật thủ công trong GitHub Settings, xem `docs/worklog/lead.md`.
