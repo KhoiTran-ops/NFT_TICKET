@@ -48,13 +48,25 @@ jobs:
           node-version-file: .nvmrc
           package-manager-cache: false
 
-      # ABI trong packages/shared phải khớp contract hiện tại.
-      - name: ABI export up to date
+      # Sinh ABI + địa chỉ cho packages/shared. Khi ABI đã được commit thì bắt buộc khớp contract hiện tại.
+      - name: Export ABI
+        run: node scripts/export-abi.mjs
+
+      - name: ABI committed is up to date
         run: |
-          node scripts/export-abi.mjs
-          if [ -n "$(git status --porcelain -- ../packages/shared/src)" ]; then
-            echo "::error::ABI/addresses trong packages/shared chưa cập nhật. Chạy: pnpm --filter contracts abi:export"
-            git status --porcelain -- ../packages/shared/src
-            for f in ../packages/shared/src/abi/*.ts ../packages/shared/src/addresses.ts; do echo "===== $f"; cat "$f"; done
-            exit 1
+          if git ls-files --error-unmatch ../packages/shared/src/abi >/dev/null 2>&1; then
+            if [ -n "$(git status --porcelain -- ../packages/shared/src)" ]; then
+              echo "::error::ABI/addresses trong packages/shared chưa cập nhật. Chạy: pnpm --filter contracts abi:export"
+              git status --porcelain -- ../packages/shared/src
+              exit 1
+            fi
+          else
+            echo "::notice::ABI chưa commit vào packages/shared (sẽ commit sau khi deploy Fuji - TIC-48)."
           fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: abi
+          path: |
+            packages/shared/src/abi/
+            packages/shared/src/addresses.ts
