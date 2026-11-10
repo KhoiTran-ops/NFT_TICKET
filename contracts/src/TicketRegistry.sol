@@ -65,6 +65,7 @@ contract TicketRegistry is ERC721, AccessControl, ITicketRegistry {
             uint256 id = nextTicketId++;
             _tickets[id] = Ticket({eventId: eventId, faceValue: faceValue[i], transferCount: 0, status: Status.Active});
             // _mint thay vì _safeMint: không gọi ra ngoài (tránh reentrancy), người nhận là ví EOA/custodial.
+            // forge-lint: disable-next-line(unsafe-oz-erc721-mint)
             _mint(to[i], id);
             emit TicketIssued(id, eventId, to[i]);
         }
@@ -118,6 +119,8 @@ contract TicketRegistry is ERC721, AccessControl, ITicketRegistry {
 
         IEventRegistry.Policy memory p = eventRegistry.policyOf(eventId);
         if (!p.resaleAllowed) revert ResaleNotAllowed(eventId);
+        // Hạn chót tính theo ngày; sai lệch vài giây của validator không ảnh hưởng.
+        // forge-lint: disable-next-line(block-timestamp)
         if (p.transferDeadline != 0 && block.timestamp >= p.transferDeadline) revert TransferDeadlinePassed(eventId);
         if (t.transferCount >= p.maxTransfers) revert MaxTransfersReached(id);
 

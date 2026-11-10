@@ -60,6 +60,7 @@ contract EventRegistry is AccessControl, IEventRegistry {
         returns (uint256 eventId)
     {
         if (policy.resaleAllowed && policy.priceCapBps == 0) revert InvalidPolicy();
+        // forge-lint: disable-next-line(block-timestamp)
         if (policy.transferDeadline != 0 && policy.transferDeadline <= block.timestamp) revert InvalidPolicy();
 
         eventId = nextEventId++;
