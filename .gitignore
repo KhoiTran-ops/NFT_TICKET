@@ -21,3 +21,4 @@ contracts/broadcast/*/31337/
 # OS / editor
 .DS_Store
 *.log
+contracts/deployments/local-*.json

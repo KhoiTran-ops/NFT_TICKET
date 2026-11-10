@@ -29,4 +29,9 @@ export default defineConfig(
       "no-console": "warn",
     },
   },
+  {
+    // Script CLI (build/export) được in ra console.
+    files: ["**/scripts/**/*.{js,mjs,ts}"],
+    rules: { "no-console": "off" },
+  },
 );

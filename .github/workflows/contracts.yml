@@ -1,9 +1,9 @@
 name: contracts
 
+# Chạy trên mọi push (mọi nhánh) để nhánh làm việc có kết quả CI trước khi mở PR;
+# check gắn với commit nên PR dùng lại kết quả này.
 on:
-  pull_request:
   push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -42,3 +42,18 @@ jobs:
 
       - name: forge test
         run: forge test -vv
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # ABI trong packages/shared phải khớp contract hiện tại.
+      - name: ABI export up to date
+        run: |
+          node scripts/export-abi.mjs
+          if [ -n "$(git status --porcelain -- ../packages/shared/src)" ]; then
+            echo "::error::ABI/addresses trong packages/shared chưa cập nhật. Chạy: pnpm --filter contracts abi:export"
+            git status --porcelain -- ../packages/shared/src
+            for f in ../packages/shared/src/abi/*.ts ../packages/shared/src/addresses.ts; do echo "===== $f"; cat "$f"; done
+            exit 1
+          fi
