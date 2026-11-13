@@ -3,6 +3,8 @@ import { afterAll, beforeAll, beforeEach, expect, it } from "vitest";
 import { URI } from "otpauth";
 import { buildApp } from "../src/index.js";
 import { registerAuthRoutes } from "../src/modules/auth/routes.js";
+import { registerEventManagement } from "../src/modules/events/manage.js";
+import { registerPublicEventRoutes } from "../src/modules/events/public-events.js";
 import { postgresFixture } from "./postgres.mjs";
 
 let fixture;
@@ -20,6 +22,9 @@ beforeAll(() => {
   registerAuthRoutes(app, fixture.db, {
     jwtSecret: randomBytes(32), otpPepper: randomBytes(32), fieldKey: randomBytes(32), clock: () => now,
     deliver: async (email, code) => { codes.set(email, code); },
+  }, (scope, access) => {
+    registerEventManagement(scope, fixture.db, access);
+    registerPublicEventRoutes(scope, fixture.db, access);
   });
 }, 60_000);
 beforeEach(() => { now = Date.now(); });
@@ -174,4 +179,50 @@ it("enrolls TOTP once, rejects replay and records changes without storing the pl
   expect(JSON.stringify(audit)).not.toContain(authenticator.secret.base32);
   now += 12 * 3_600_000;
   expect((await client.post("/auth/refresh", undefined, cookies)).statusCode).toBe(401);
+});
+
+it("limits event writes and draft reads to the organization and audits publication after recent MFA", async () => {
+  const org = await fixture.db.organization.create({ data: { legalName: "Fixture", taxId: "fixture-owner" } });
+  const other = await fixture.db.organization.create({ data: { legalName: "Other", taxId: "fixture-other" } });
+  const client = await browser();
+  const loginResult = await login(client, "organizer@example.test");
+  const cookies = tokenCookies(loginResult);
+  const userId = loginResult.json().user.id;
+  const path = `/organizations/${org.id}/events`;
+  const input = { name: "Local show", timezone: "Asia/Ho_Chi_Minh", kycRequired: true,
+    startsAt: "2030-11-21T12:00:00Z", endsAt: "2030-11-21T15:00:00Z", status: "published" };
+  expect((await client.post(path, input)).statusCode).toBe(401);
+  expect((await client.post(path, input, cookies)).json().code).toBe("ROLE_FORBIDDEN");
+  const role = await fixture.db.roleAssignment.create({ data: {
+    userId, role: "org_manager", scopeType: "organization", organizationId: org.id,
+  } });
+  expect((await client.post(path, input, cookies)).json().code).toBe("MFA_REQUIRED");
+  const setup = await client.post("/auth/mfa/totp/setup", undefined, cookies);
+  const authenticator = URI.parse(setup.json().otpauthUri);
+  expect((await client.post("/auth/mfa/totp/activate", { code: authenticator.generate({ timestamp: now }) }, cookies)).statusCode).toBe(204);
+  expect((await client.post(`/organizations/${other.id}/events`, input, cookies)).statusCode).toBe(404);
+  const created = await client.post(path, input, cookies);
+  expect(created.statusCode).toBe(201);
+  expect(created.json()).toMatchObject({ status: "draft", kycRequired: true });
+  const eventId = created.json().id;
+  expect((await client.read(`/events/${eventId}`)).statusCode).toBe(404);
+  expect((await client.read(`/events/${eventId}`, cookies)).statusCode).toBe(200);
+  const tier = await client.post(`/events/${eventId}/tiers`, {
+    name: "Standard", basePrice: 250_000, currency: "VND", totalQuantity: 100, perAccountLimit: 2,
+    saleStartsAt: "2030-10-21T12:00:00Z", saleEndsAt: "2030-11-21T12:00:00Z",
+  }, cookies);
+  expect(tier.statusCode).toBe(201);
+  const publishPath = `/events/${eventId}/publish`;
+  expect((await client.post(publishPath, { reason: "Ready to publish" }, cookies)).json().code).toBe("ROLE_FORBIDDEN");
+  await fixture.db.roleAssignment.update({ where: { id: role.id }, data: { role: "org_owner" } });
+  now += 15 * 60_000;
+  const refresh = await client.post("/auth/refresh", undefined, cookies);
+  const renewed = tokenCookies(refresh);
+  expect((await client.post(publishPath, { reason: "Ready to publish" }, renewed)).json().code).toBe("MFA_REQUIRED");
+  expect((await client.post("/auth/mfa/totp/verify", {
+    code: authenticator.generate({ timestamp: now }),
+  }, renewed)).statusCode).toBe(200);
+  expect((await client.post(publishPath, { reason: "Ready to publish" }, renewed)).json().status).toBe("published");
+  expect((await client.read(`/events/${eventId}`)).statusCode).toBe(200);
+  expect(await fixture.db.auditLog.count({ where: { actorId: userId, action: "event.publish", targetId: eventId } })).toBe(1);
 });

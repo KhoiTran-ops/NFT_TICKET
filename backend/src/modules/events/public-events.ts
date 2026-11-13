@@ -3,6 +3,8 @@ import { ERROR_HTTP_STATUS, ErrorAction, EventStatus } from "@nft-ticket/shared"
 import type { ApiError } from "@nft-ticket/shared";
 import type { FastifyInstance } from "fastify";
 import rateLimit from "@fastify/rate-limit";
+import { eventAccess } from "../auth/event-access.js";
+import type { EventAccess } from "../auth/event-access.js";
 
 const publicEvent = {
   id: true, organizationId: true, name: true, venue: true, status: true,
@@ -10,7 +12,7 @@ const publicEvent = {
 } satisfies Prisma.EventSelect;
 type PublicEvent = Prisma.EventGetPayload<{ select: typeof publicEvent }>;
 
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const publicRoute = { config: { public: true }, exposeHeadRoute: false } as const;
 
 function eventSummary({ venue, startsAt, endsAt, ...event }: PublicEvent) {
@@ -26,17 +28,39 @@ function decodeCursor(value: unknown) {
   return { startsAt, id };
 }
 
-export function registerPublicEventRoutes(app: FastifyInstance, db: PrismaClient) {
+export const detailSelection = {
+  ...publicEvent, description: true, policyVersion: true,
+  tiers: { orderBy: { id: "asc" }, select: {
+    id: true, eventId: true, name: true, faceValue: true, currency: true, quantity: true,
+    reserved: true, sold: true, saleStartsAt: true, saleEndsAt: true, perAccountLimit: true,
+  } },
+} satisfies Prisma.EventSelect;
+
+export function tierView({ faceValue, quantity, reserved, sold, ...tier }: Prisma.TicketTierGetPayload<{
+  select: typeof detailSelection.tiers.select;
+}>) {
+  const basePrice = Number(faceValue);
+  if (!Number.isSafeInteger(basePrice)) throw new Error("Ticket price exceeds API integer range");
+  return { ...tier, basePrice, totalQuantity: quantity, availableQuantity: quantity - reserved - sold };
+}
+
+export function eventDetail({ tiers, description, policyVersion, ...summary }: Prisma.EventGetPayload<{
+  select: typeof detailSelection;
+}>) {
+  return { ...eventSummary(summary), description: description ?? undefined, policyVersion, tiers: tiers.map(tierView) };
+}
+
+export function registerPublicEventRoutes(app: FastifyInstance, db: PrismaClient, access?: EventAccess) {
   app.register(async (scope) => {
     await scope.register(rateLimit, {
       global: false,
       errorResponseBuilder: () => ({ statusCode: 429, code: "RATE_LIMITED" }),
     });
-    registerRoutes(scope, db);
+    registerRoutes(scope, db, access);
   });
 }
 
-function registerRoutes(app: FastifyInstance, db: PrismaClient) {
+function registerRoutes(app: FastifyInstance, db: PrismaClient, access?: EventAccess) {
   const listRoute = {
     ...publicRoute, config: { ...publicRoute.config, rateLimit: { max: 60, timeWindow: 60_000 } },
   };
@@ -73,41 +97,22 @@ function registerRoutes(app: FastifyInstance, db: PrismaClient) {
 
   app.get<{ Params: { eventId: string } }>("/events/:eventId", publicRoute, async (request, reply) => {
     const { eventId } = request.params;
-    const event = uuidPattern.test(eventId) ? await db.event.findFirst({
-      where: {
-        id: eventId,
-        status: { in: [EventStatus.Published, EventStatus.CancelRequested, EventStatus.Cancelled, EventStatus.Completed] },
-      },
-      select: {
-        ...publicEvent, description: true, policyVersion: true,
-        tiers: {
-          orderBy: { id: "asc" },
-          select: {
-            id: true, eventId: true, name: true, faceValue: true, currency: true, quantity: true,
-            reserved: true, sold: true, saleStartsAt: true, saleEndsAt: true, perAccountLimit: true,
-          },
-        },
-      },
+    const event = uuidPattern.test(eventId) ? await db.event.findUnique({
+      where: { id: eventId }, select: detailSelection,
     }) : null;
-    if (!event) {
+    if (event?.status === EventStatus.Draft) {
+      const identity = await access?.optionalIdentity(request);
+      if (access && identity && !identity.locked && "role" in eventAccess(identity, event.organizationId, false, access.clock())) {
+        reply.header("Cache-Control", "private, no-store");
+        return eventDetail(event);
+      }
+    }
+    if (!event || event.status === EventStatus.Draft) {
       return reply.code(ERROR_HTTP_STATUS.NOT_FOUND).send({
         code: "NOT_FOUND", message: "Không tìm thấy sự kiện.",
         action: ErrorAction.None, correlationId: request.id,
       } satisfies ApiError);
     }
-    const { tiers, description, policyVersion, ...summary } = event;
-    return {
-      ...eventSummary(summary),
-      description: description ?? undefined,
-      policyVersion,
-      tiers: tiers.map(({ faceValue, quantity, reserved, sold, ...tier }) => {
-        const basePrice = Number(faceValue);
-        if (!Number.isSafeInteger(basePrice)) throw new Error("Ticket price exceeds API integer range");
-        return {
-          ...tier, basePrice, totalQuantity: quantity, availableQuantity: quantity - reserved - sold,
-          saleStartsAt: tier.saleStartsAt.toISOString(), saleEndsAt: tier.saleEndsAt.toISOString(),
-        };
-      }),
-    };
+    return eventDetail(event);
   });
 }
