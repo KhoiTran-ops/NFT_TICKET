@@ -1,0 +1,30 @@
+{
+  "name": "@nft-ticket/shared",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Hợp đồng dùng chung FE + BE: types, mã lỗi, OpenAPI, cấu hình chain.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./openapi.yaml": "./openapi.yaml"
+  },
+  "files": [
+    "dist",
+    "openapi.yaml"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "openapi:lint": "redocly lint openapi.yaml"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.77.0",
+    "yaml": "2.9.1"
+  }
+}

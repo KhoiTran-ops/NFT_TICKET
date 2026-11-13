@@ -1,0 +1,11 @@
+{
+  "name": "contracts",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Smart contract Solidity (Foundry). Build/test bằng forge, không nằm trong `pnpm build` ở root.",
+  "scripts": {
+    "forge:build": "forge build --sizes",
+    "forge:test": "forge test -vv",
+    "forge:fmt": "forge fmt --check"
+  }
+}

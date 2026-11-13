@@ -1,0 +1,48 @@
+name: apps
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  js:
+    name: lint + build + test (JS/TS workspaces)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # phiên bản lấy từ "packageManager" trong package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # build trước để backend/frontend resolve được dist của @nft-ticket/shared
+      - name: Build
+        run: pnpm build
+
+      - name: Lint
+        run: pnpm lint --max-warnings=0
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Validate OpenAPI
+        run: pnpm openapi:lint
