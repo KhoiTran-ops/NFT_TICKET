@@ -47,6 +47,48 @@ enum KycReasonCode {
   PROVIDER_ERROR
 }
 
+enum KybStatus {
+  pending
+  verified
+  rejected
+}
+
+enum EventStatus {
+  draft
+  published
+  cancel_requested
+  cancelled
+  completed
+}
+
+enum OrderStatus {
+  reserved
+  paid
+  issued
+  expired
+  payment_failed
+  exception
+}
+
+enum TicketStatus {
+  active
+  listed
+  settling
+  used
+  void_pending_refund
+  void
+}
+
+enum Currency {
+  VND
+}
+
+enum ScopeType {
+  platform
+  organization
+  event
+}
+
 model User {
   id                   String    @id @default(uuid()) @db.Uuid
   email                String    @unique @db.VarChar(254)
@@ -63,6 +105,10 @@ model User {
   sessions     Session[]
   auditEntries AuditLog[]
   kyc          KycVerification?
+  roles        RoleAssignment[] @relation("Assignee")
+  grantedRoles RoleAssignment[] @relation("Grantor")
+  orders       Order[]
+  tickets      Ticket[]
 }
 
 model Session {
@@ -134,4 +180,120 @@ model KycVerification {
   verifiedAt               DateTime?         @db.Timestamptz(3)
   reasonCode               KycReasonCode?
   user                     User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model RoleAssignment {
+  id             String        @id @default(uuid()) @db.Uuid
+  userId         String        @db.Uuid
+  role           Role
+  scopeType      ScopeType
+  organizationId String?       @db.Uuid
+  eventId        String?       @db.Uuid
+  grantedById    String?       @db.Uuid
+  expiresAt      DateTime?     @db.Timestamptz(3)
+  user           User          @relation("Assignee", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy      User?         @relation("Grantor", fields: [grantedById], references: [id], onDelete: SetNull)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  event          Event?        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Organization {
+  id                      String           @id @default(uuid()) @db.Uuid
+  legalName               String
+  taxId                   String           @unique
+  kybStatus               KybStatus        @default(pending)
+  issuerAddress           String?          @unique @db.VarChar(42)
+  payoutAccountCiphertext Bytes?
+  events                  Event[]
+  roles                   RoleAssignment[]
+}
+
+model Event {
+  id              String           @id @default(uuid()) @db.Uuid
+  organizationId  String           @db.Uuid
+  name            String
+  description     String?
+  venue           String?
+  timezone        String
+  policyVersion   String
+  status          EventStatus      @default(draft)
+  kycRequired     Boolean          @default(false)
+  startsAt        DateTime         @db.Timestamptz(3)
+  endsAt          DateTime         @db.Timestamptz(3)
+  perAccountLimit Int?
+  chainId         Int?
+  registryAddress String?          @db.VarChar(42)
+  onChainEventId  Decimal?         @db.Decimal(78, 0)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  tiers           TicketTier[]
+  roles           RoleAssignment[]
+
+  @@unique([chainId, registryAddress, onChainEventId])
+  @@index([organizationId])
+  @@index([status, startsAt, id])
+}
+
+model TicketTier {
+  id              String   @id @default(uuid()) @db.Uuid
+  eventId         String   @db.Uuid
+  name            String
+  faceValue       BigInt
+  currency        Currency @default(VND)
+  quantity        Int
+  reserved        Int      @default(0)
+  sold            Int      @default(0)
+  saleStartsAt    DateTime @db.Timestamptz(3)
+  saleEndsAt      DateTime @db.Timestamptz(3)
+  perAccountLimit Int
+  event           Event    @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  orders          Order[]
+
+  @@index([eventId])
+}
+
+// A reserved order is the inventory hold. Its price and policy are snapshots.
+model Order {
+  id               String      @id @default(uuid()) @db.Uuid
+  userId           String      @db.Uuid
+  tierId           String      @db.Uuid
+  status           OrderStatus @default(reserved)
+  quantity         Int
+  unitPrice        BigInt
+  fee              BigInt      @default(0)
+  total            BigInt
+  currency         Currency    @default(VND)
+  policyVersion    String
+  policyAcceptedAt DateTime    @db.Timestamptz(3)
+  idempotencyKey   String      @db.Uuid
+  requestHash      Bytes
+  expiresAt        DateTime    @db.Timestamptz(3)
+  createdAt        DateTime    @default(now()) @db.Timestamptz(3)
+  user             User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tier             TicketTier  @relation(fields: [tierId], references: [id], onDelete: Restrict)
+  tickets          Ticket[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt, id])
+  @@index([tierId, userId, status])
+  @@index([status, expiresAt])
+}
+
+// Confirmed on-chain identity is scoped by chain and contract.
+model Ticket {
+  id              String       @id @default(uuid()) @db.Uuid
+  orderId         String       @db.Uuid
+  ownerId         String       @db.Uuid
+  faceValue       BigInt
+  status          TicketStatus @default(active)
+  chainId         Int
+  registryAddress String       @db.VarChar(42)
+  tokenId         Decimal      @db.Decimal(78, 0)
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  owner           User         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+
+  @@unique([chainId, registryAddress, tokenId])
+  @@index([ownerId, status])
+  @@index([orderId])
 }

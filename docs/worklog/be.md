@@ -7,6 +7,7 @@
 - **Mục tiêu phiên:** Tách nhánh khỏi TIC-47, tách schema theo phần, chạy PostgreSQL trên CI và sửa lỗi HTTP, audit, startup, rate limit.
 - **TIC-32:** Test parser xác nhận HTTP 413/415. Lỗi nội bộ ghi mã Fastify/Prisma đã lọc và correlation ID; test tiếp tục kiểm tra dữ liệu request và lỗi thô không lộ.
 - **TIC-31 phần 1:** Migration độc lập cho tài khoản, phiên, OTP, eKYC và audit. Test PostgreSQL xác nhận trường của tác nhân người dùng/hệ thống và trigger chỉ-thêm. Workflow có bước `test:db` bắt buộc sau khi build.
+- **TIC-31 phần 2:** Migration riêng cho tổ chức, sự kiện, vai trò theo phạm vi, hạng vé, đơn và vé. Kiểm tra hai migration cùng chạy được, seed hai lần, ba unique index theo phạm vi và các ràng buộc tồn kho, số tiền, ID vé.
 
 ## 2026-11-13 · Dựng API và chuẩn bị schema PostgreSQL cho Sprint 0
 

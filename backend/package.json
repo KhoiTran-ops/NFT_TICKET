@@ -9,6 +9,7 @@
     "start": "node --env-file-if-exists=../.env dist/main.js",
     "db:generate": "node --env-file-if-exists=../.env ./node_modules/prisma/build/index.js generate",
     "db:migrate": "node --env-file-if-exists=../.env ./node_modules/prisma/build/index.js migrate deploy",
+    "db:seed": "node --env-file-if-exists=../.env prisma/seed.mjs",
     "build": "prisma generate && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --exclude '**/*.integration.test.mjs'",

@@ -24,3 +24,7 @@ Tham khảo [Fastify Logging](https://fastify.dev/docs/latest/Reference/Logging/
 Audit của nhân sự giữ ID, vai trò và IP. Job tự động ghi `actorType: "system"` và tên job, ví dụ `auction-close`. PostgreSQL kiểm tra trường theo loại tác nhân và chặn sửa, xóa hoặc truncate. Dùng tài khoản migration riêng với tài khoản chạy ứng dụng.
 
 Các ràng buộc ngoài Prisma schema nằm trong migration SQL. Khi đổi schema, sinh migration với `prisma migrate dev --create-only` trên DB phát triển, đọc SQL trước khi áp dụng và chạy lại `test:db`. Giữ nguyên các migration đã áp dụng. [Prisma Migrate v6](https://www.prisma.io/docs/orm/v6/prisma-migrate/workflows/unsupported-database-features)
+
+Nếu đã chạy migration `20261113000000_init` từ nhánh review cũ, dùng schema hoặc database phát triển mới cho nhánh này. Giữ lại dữ liệu cũ nếu cần.
+
+Đặt `ALLOW_DEMO_SEED=true` rồi chạy `pnpm --filter backend db:seed` để tạo một sự kiện nháp và hạng vé trên PostgreSQL local. Giá lưu bằng số nguyên VND. ID sự kiện và vé lưu đủ độ chính xác `uint256`, phân biệt theo chain ID và địa chỉ registry.
