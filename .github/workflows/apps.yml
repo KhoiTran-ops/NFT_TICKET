@@ -1,9 +1,9 @@
 name: apps
 
+# Chạy trên mọi push (mọi nhánh) để nhánh làm việc có kết quả CI trước khi mở PR;
+# check gắn với commit nên PR dùng lại kết quả này.
 on:
-  pull_request:
   push:
-    branches: [main, "fix/TIC-*", "feat/TIC-*"]
   workflow_dispatch:
 
 permissions:
@@ -32,12 +32,12 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: pnpm/action-setup@v4
         # phiên bản lấy từ "packageManager" trong package.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: pnpm
