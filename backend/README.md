@@ -15,3 +15,12 @@ pnpm --filter backend test
 - Healthcheck chạy độc lập với PostgreSQL và Avalanche. Các luồng ghi nhận NFT sẽ dùng Avalanche Fuji C-Chain, ID 43113, theo cấu hình trong `@nft-ticket/shared`.
 
 Tham khảo [Fastify Logging](https://fastify.dev/docs/latest/Reference/Logging/) và [Avalanche Primary Network](https://build.avax.network/docs/primary-network#c-chain-contract-chain).
+
+## PostgreSQL
+
+Đặt `DATABASE_URL` trong môi trường hoặc `.env` ở root, rồi chạy `pnpm --filter backend db:migrate`.
+Để review, đặt `TEST_DATABASE_URL` tới PostgreSQL local và chạy `pnpm --filter backend test:db` sau khi build. Suite tạo schema ngẫu nhiên, chạy toàn bộ migration và dọn schema sau test. Workflow GitHub dùng PostgreSQL riêng cho bước này.
+
+Audit của nhân sự giữ ID, vai trò và IP. Job tự động ghi `actorType: "system"` và tên job, ví dụ `auction-close`. PostgreSQL kiểm tra trường theo loại tác nhân và chặn sửa, xóa hoặc truncate. Dùng tài khoản migration riêng với tài khoản chạy ứng dụng.
+
+Các ràng buộc ngoài Prisma schema nằm trong migration SQL. Khi đổi schema, sinh migration với `prisma migrate dev --create-only` trên DB phát triển, đọc SQL trước khi áp dụng và chạy lại `test:db`. Giữ nguyên các migration đã áp dụng. [Prisma Migrate v6](https://www.prisma.io/docs/orm/v6/prisma-migrate/workflows/unsupported-database-features)

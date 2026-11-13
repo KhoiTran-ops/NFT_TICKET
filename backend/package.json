@@ -7,12 +7,19 @@
   "main": "./dist/index.js",
   "scripts": {
     "start": "node --env-file-if-exists=../.env dist/main.js",
-    "build": "tsc -p tsconfig.build.json",
+    "db:generate": "node --env-file-if-exists=../.env ./node_modules/prisma/build/index.js generate",
+    "db:migrate": "node --env-file-if-exists=../.env ./node_modules/prisma/build/index.js migrate deploy",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --exclude '**/*.integration.test.mjs'",
+    "test:db": "vitest run integration.test.mjs"
   },
   "dependencies": {
     "@nft-ticket/shared": "workspace:*",
+    "@prisma/client": "6.19.3",
     "fastify": "5.12.8"
+  },
+  "devDependencies": {
+    "prisma": "6.19.3"
   }
 }

@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  org_owner
+  org_manager
+  gate_staff
+  platform_operator
+  kyc_reviewer
+  platform_admin
+}
+
+enum OtpChannel {
+  email
+  sms
+}
+
+enum VerificationLevel {
+  L1
+  L2
+  L3
+}
+
+enum KycStatus {
+  not_started
+  pending
+  verified
+  rejected
+  revoked
+}
+
+enum KycReasonCode {
+  DOC_UNREADABLE
+  DOC_EXPIRED
+  DOC_NOT_SUPPORTED
+  FACE_MISMATCH
+  LIVENESS_FAILED
+  DUPLICATE_IDENTITY
+  UNDERAGE
+  PROVIDER_ERROR
+}
+
+model User {
+  id                   String    @id @default(uuid()) @db.Uuid
+  email                String    @unique @db.VarChar(254)
+  emailVerifiedAt      DateTime? @db.Timestamptz(3)
+  phone                String?   @unique @db.VarChar(16)
+  phoneVerifiedAt      DateTime? @db.Timestamptz(3)
+  displayName          String
+  lockedUntil          DateTime? @db.Timestamptz(3)
+  sessionVersion       Int       @default(0)
+  totpSecretCiphertext Bytes?
+  totpEnabledAt        DateTime? @db.Timestamptz(3)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(3)
+
+  sessions     Session[]
+  auditEntries AuditLog[]
+  kyc          KycVerification?
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  familyId         String    @db.Uuid
+  refreshTokenHash Bytes     @unique
+  expiresAt        DateTime  @db.Timestamptz(3)
+  rotatedAt        DateTime? @db.Timestamptz(3)
+  revokedAt        DateTime? @db.Timestamptz(3)
+  mfaVerifiedAt    DateTime? @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model OtpChallenge {
+  id         String     @id @default(uuid()) @db.Uuid
+  channel    OtpChannel
+  targetHash Bytes
+  codeHash   Bytes
+  attempts   Int        @default(0)
+  expiresAt  DateTime   @db.Timestamptz(3)
+  consumedAt DateTime?  @db.Timestamptz(3)
+  createdAt  DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@index([channel, targetHash, createdAt])
+  @@index([expiresAt])
+}
+
+enum AuditActorType {
+  user
+  system
+}
+
+model AuditLog {
+  id            String         @id @default(uuid()) @db.Uuid
+  actorType     AuditActorType @default(user)
+  actorId       String?        @db.Uuid
+  role          Role?
+  systemActor   String?        @db.VarChar(64)
+  action        String
+  targetType    String
+  targetId      String
+  before        Json?
+  after         Json?
+  reason        String
+  ip            String?        @db.Inet
+  correlationId String
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  actor         User?          @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt, id])
+  @@index([targetType, targetId])
+}
+
+model KycVerification {
+  userId                   String            @id @db.Uuid
+  status                   KycStatus         @default(not_started)
+  level                    VerificationLevel @default(L1)
+  providerRef              String?           @unique
+  idNumberHash             Bytes?            @unique
+  legalNameCiphertext      Bytes?
+  birthDateCiphertext      Bytes?
+  idLastFourCiphertext     Bytes?
+  documentExpiryCiphertext Bytes?
+  verifiedAt               DateTime?         @db.Timestamptz(3)
+  reasonCode               KycReasonCode?
+  user                     User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
