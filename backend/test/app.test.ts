@@ -57,15 +57,16 @@ it("omits raw URLs, headers, bodies and exception details from logs", async () =
 it("preserves 413 and 415 from the HTTP parser", async () => {
   app = buildApp(false);
   app.post("/input", { config: { public: true }, bodyLimit: 16 }, () => ({ ok: true }));
-  for (const [contentType, payload, status] of [
-    ["application/json", JSON.stringify("a".repeat(30)), 413],
-    ["application/octet-stream", "data", 415],
+  for (const [contentType, payload, status, code] of [
+    ["application/json", "{", 400, "VALIDATION_ERROR"],
+    ["application/json", JSON.stringify("a".repeat(30)), 413, "PAYLOAD_TOO_LARGE"],
+    ["application/octet-stream", "data", 415, "UNSUPPORTED_MEDIA_TYPE"],
   ] as const) {
     const response = await app.inject({
       method: "POST", url: "/input", headers: { "content-type": contentType }, payload,
     });
     expect(response.statusCode).toBe(status);
-    expect(response.json()).toMatchObject({ code: "VALIDATION_ERROR" });
+    expect(response.json()).toMatchObject({ code });
   }
 });
 

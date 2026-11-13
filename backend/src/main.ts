@@ -1,14 +1,8 @@
-import { buildApp } from "./index.js";
+import { startBackend } from "./startup.js";
 
-const app = buildApp();
-const rawPort = process.env.PORT ?? "4000";
-const port = Number(rawPort);
-
-try {
-  if (!/^\d{1,5}$/.test(rawPort) || port < 1 || port > 65535) {
-    throw new Error("Invalid PORT");
-  }
-  await app.listen({ port, host: process.env.HOST ?? "127.0.0.1" });
+const result = await startBackend(process.env);
+if (result.app) {
+  const { app } = result;
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, () => {
       void app.close().catch(() => {
@@ -17,8 +11,7 @@ try {
       });
     });
   }
-} catch {
-  app.log.error("Backend startup failed");
+} else {
+  process.stderr.write(JSON.stringify({ level: 50, ...result.failure, msg: "Backend startup failed" }) + "\n");
   process.exitCode = 1;
-  await app.close();
 }
