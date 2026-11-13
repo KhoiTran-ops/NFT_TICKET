@@ -3,7 +3,7 @@ name: apps
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, "fix/TIC-*", "feat/TIC-*"]
   workflow_dispatch:
 
 permissions:
