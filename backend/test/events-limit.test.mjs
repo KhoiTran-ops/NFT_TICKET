@@ -4,7 +4,7 @@ import { registerPublicEventRoutes } from "../src/modules/events/public-events.j
 
 it("rate limits only the event list and ignores untrusted forwarded IPs", async () => {
   const app = buildApp(false);
-  const db = { event: { findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn().mockResolvedValue(null) } };
+  const db = { event: { findMany: vi.fn().mockResolvedValue([]), findUnique: vi.fn().mockResolvedValue(null) } };
   registerPublicEventRoutes(app, db);
   try {
     for (let i = 0; i < 60; i++) {

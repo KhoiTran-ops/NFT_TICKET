@@ -35,6 +35,8 @@ Gọi `GET /auth/csrf` rồi giữ cookie và gửi lại token nhận được 
 
 Nhân sự thiết lập và kích hoạt TOTP theo các route `/auth/mfa/totp/*`. Giữ URI thiết lập trong ứng dụng authenticator. Khi chưa kích hoạt, gọi lại `setup` sẽ tạo secret mới và vô hiệu secret cũ; sau khi kích hoạt thì `setup` trả `409`. Quy trình khôi phục 2FA chờ quyết định Product.
 
+Nhân sự đã được gán quyền có thể đọc/sửa bản nháp và quản lý hạng vé trong đúng tổ chức. Chủ tổ chức cần xác thực TOTP trong 15 phút gần nhất để xuất bản. Việc xuất bản ở bước này cập nhật PostgreSQL và ghi audit. LEAD cung cấp tích hợp Fuji để ghi sự kiện và phát hành NFT trên chain.
+
 Đặt `ALLOW_DEMO_SEED=true` rồi chạy `pnpm --filter backend db:seed` để tạo một sự kiện nháp và hạng vé trên PostgreSQL local. Giá lưu bằng số nguyên VND. ID sự kiện và vé lưu đủ độ chính xác `uint256`, phân biệt theo chain ID và địa chỉ registry.
 
 `GET /events` giới hạn 60 request/phút/IP trên mỗi tiến trình và trả `429 RATE_LIMITED` cùng `Retry-After`. Khi deploy sau reverse proxy, đặt `TRUSTED_PROXY_CIDRS` thành danh sách IP/CIDR thực tế của proxy trực tiếp và các hop tin cậy, ví dụ `127.0.0.1,10.20.30.8/32`. Proxy cần ghi đè hoặc nối IP nguồn đúng cách. Chỉ dùng dải IP dành riêng cho proxy. Nếu nhà cung cấp không có dải proxy đáng tin cậy, đặt giới hạn theo IP khách tại ingress và kiểm tra giới hạn theo IP kết nối của ứng dụng trước khi mở public. Với nhiều replica, dùng giới hạn chung ở ingress. [Fastify trustProxy](https://fastify.dev/docs/latest/Reference/Server/#trustproxy)

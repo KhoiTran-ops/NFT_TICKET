@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { afterEach, expect, it } from "vitest";
 import { buildApp } from "../src/index.js";
 import { registerAuthRoutes } from "../src/modules/auth/routes.js";
+import { registerEventManagement } from "../src/modules/events/manage.js";
 import { registerPublicEventRoutes } from "../src/modules/events/public-events.js";
 
 // Routes reachable without a session. Adding one must be a deliberate change to this list.
@@ -27,8 +28,10 @@ async function fullApp() {
   registerAuthRoutes(app, db, {
     jwtSecret: randomBytes(32), otpPepper: randomBytes(32), fieldKey: randomBytes(32),
     deliver: async () => { throw new Error("must not send"); },
+  }, (scope, access) => {
+    registerPublicEventRoutes(scope, db, access);
+    registerEventManagement(scope, db, access);
   });
-  registerPublicEventRoutes(app, db);
   await app.ready();
   return routes;
 }
@@ -44,7 +47,7 @@ it("declares access for every route and keeps the public list explicit", async (
 it("checks the session before parsing or validating the body", async () => {
   await fullApp();
   const response = await app.inject({
-    method: "POST", url: "/auth/mfa/totp/verify",
+    method: "POST", url: "/organizations/12ab0000-0000-4000-8000-000000000001/events",
     headers: { "content-type": "application/json" }, payload: "{",
   });
   expect(response.statusCode).toBe(401);

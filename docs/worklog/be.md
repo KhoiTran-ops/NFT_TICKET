@@ -1,5 +1,25 @@
 # Worklog · be
 
+## 2026-11-13 · Sửa lỗi review phần đăng nhập
+
+- **Issue:** TIC-37, TIC-38, TIC-39, TIC-45 (cùng thay đổi local chưa commit ở mục dưới)
+- **Thực hiện bởi:** AI (Claude), theo yêu cầu của BE
+- **Đã làm:** Server dừng ở `AUTH_CONFIG_INVALID` khi thiếu cấu hình đăng nhập, không còn chế độ chạy không có đăng nhập. Cho thiết lập lại TOTP khi chưa kích hoạt. Refresh dùng lại token cũ trong 10 giây không thu hồi phiên. Logout nhận refresh cookie khi access token hết hạn. Xác thực phiên chạy ở `onRequest` của route, trước CSRF, parse và validate body. Thêm test liệt kê mọi route phải khai báo quyền và danh sách route công khai cố định.
+- **Bằng chứng:** Typecheck không có lỗi ở mã đã sửa. Chưa chạy được vitest và `test:db` trong môi trường của AI; BE cần chạy `pnpm --filter backend test` và `test:db` trước khi commit.
+- **Việc tiếp theo:** Tách commit theo migration, OTP/phiên/CSRF, TOTP và API quản lý sự kiện; mở PR riêng cho migration để hai người duyệt.
+
+## 2026-11-13 · Đăng nhập email OTP và phiên trên máy
+
+- **Issue:** TIC-37, TIC-38, TIC-39, một phần TIC-40/41/42/45
+- **Thực hiện bởi:** AI (Codex)
+- **Mục tiêu:** Nối email OTP với phiên đăng nhập và CSRF. Kiểm tra đồng thời trên PostgreSQL. Giữ thay đổi local theo yêu cầu BE.
+- **Đã làm:** Email OTP với giới hạn gửi/thử, phiên JWT, refresh rotation, đăng xuất và CSRF. Thiết lập/kích hoạt/xác minh TOTP với secret mã hóa và migration chống phát lại.
+- **Đã làm:** Kiểm tra quyền theo tổ chức cho API sự kiện. Tạo, đọc và sửa nháp, thêm/sửa hạng vé, xuất bản PostgreSQL với 2FA gần đây và audit trong cùng giao dịch.
+- **Dependencies:** `@fastify/cookie` cho cookie ký, `jose` cho JWT, `nodemailer` cho SMTP/TLS, `otpauth` cho TOTP.
+- **Bằng chứng local:** Build, typecheck, lint, OpenAPI lint, 113 test thường và 12 test PostgreSQL pass. Kiểm thử OTP đồng thời và dùng lại, refresh token dùng lại, đổi phiên bản phiên, TOTP phát lại, và quyền xuất bản theo tổ chức.
+- **Bị chặn:** Cần thông số SMTP để kiểm tra giao email thật. Cần TIC-48 để tích hợp Avalanche Fuji. Luồng KYB, cấp quyền nhân sự và API đọc audit thuộc các lát cắt tiếp theo.
+- **Việc tiếp theo:** Hoàn thiện RBAC và audit (TIC-40–42), SMS/KYB giả lập và kiểm tra điều kiện giao dịch (TIC-43/44/46), rồi làm giữ chỗ/thanh toán (TIC-53/54).
+
 ## 2026-11-13 · Hoàn thiện API và cấu hình triển khai sau review
 
 - **Issue:** TIC-32, TIC-45
