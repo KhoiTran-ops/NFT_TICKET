@@ -17,6 +17,20 @@ jobs:
   js:
     name: lint + build + test (JS/TS workspaces)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.7
+        env:
+          POSTGRES_USER: runner
+          POSTGRES_PASSWORD: ci-only
+          POSTGRES_DB: nft_ticket_test
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U runner -d nft_ticket_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +57,11 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      - name: PostgreSQL integration tests
+        env:
+          TEST_DATABASE_URL: postgresql://runner:ci-only@127.0.0.1:${{ job.services.postgres.ports[5432] }}/nft_ticket_test
+        run: pnpm --filter backend test:db
 
       - name: Validate OpenAPI
         run: pnpm openapi:lint

@@ -294,6 +294,8 @@ export type BlockingErrorCode = keyof typeof BLOCKING_ERROR_CODES;
  */
 export const GENERAL_ERROR_CODES = {
   VALIDATION_ERROR: 400,
+  PAYLOAD_TOO_LARGE: 413,
+  UNSUPPORTED_MEDIA_TYPE: 415,
   /** OTP sai, hết hạn hoặc đã dùng — gộp một mã để không lộ thông tin. */
   OTP_INVALID: 400,
   CSRF_INVALID: 403,
