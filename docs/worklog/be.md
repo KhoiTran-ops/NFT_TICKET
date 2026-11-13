@@ -11,6 +11,8 @@
 - **TIC-45:** Server kiểm tra cấu hình và kết nối PostgreSQL trước khi mở cổng HTTP. Plugin chính thức `@fastify/rate-limit` thực thi `429 RATE_LIMITED` và `Retry-After` cho `GET /events`. Mặc định 60 request/phút/IP/tiến trình.
 - **Bằng chứng migration:** `migrate dev --create-only` trên PostgreSQL 18.6 với bản sao schema tạo đúng một lệnh thêm cột. Sau khi áp dụng, kiểm tra còn 3 partial unique index, 13 CHECK và trigger audit. Cột thử nghiệm nằm trong schema local riêng.
 - **Đã ship:** base `chore/TIC-27-monorepo-base` lấy các commit nền tảng của LEAD trước TIC-47. Sau base là `fix/TIC-32-http-foundation`, `feat/TIC-31-identity-audit`, `feat/TIC-31-ticketing-schema`, `fix/TIC-45-public-event-runtime`. Các nhánh cũ giữ để đối chiếu.
+- **Bằng chứng local:** 110 test workspace thường và 5 test PostgreSQL pass. Bước `test:db` trả lỗi khi thiếu `TEST_DATABASE_URL`. Audit dependency production không báo lỗ hổng đã biết.
+- **Bị chặn:** GitHub trả 403 khi tạo draft PR bằng tích hợp hiện tại. Người có quyền trên repo có thể mở draft từ các nhánh đã push. Nếu đã áp dụng migration gộp cũ, dùng schema phát triển mới cho hai migration đã tách.
 - **Việc tiếp theo:** review base với LEAD, sau đó review từng nhánh theo thứ tự. Hai nhánh schema cần hai lượt duyệt và chạy migration/test local trên DB riêng. TIC-45 vẫn chỉ gồm các endpoint đọc công khai.
 
 ## 2026-11-13 · Dựng API và chuẩn bị schema PostgreSQL cho Sprint 0
