@@ -53,11 +53,16 @@ export function buildApp(logger: FastifyServerOptions["logger"] = true) {
   });
 
   app.setErrorHandler((error, request, reply) => {
-    const status = typeof error === "object" && error !== null && "statusCode" in error
-      ? error.statusCode : undefined;
+    const details = typeof error === "object" && error !== null ? error : {};
+    const status = "statusCode" in details ? details.statusCode : undefined;
     const clientError = typeof status === "number" && Number.isInteger(status) && status >= 400 && status < 500;
     const code = clientError ? "VALIDATION_ERROR" : "INTERNAL_ERROR";
-    if (!clientError) request.log.error("Request failed");
+    if (!clientError) {
+      const rawCode = "code" in details ? details.code : "errorCode" in details ? details.errorCode : undefined;
+      const errorCode = typeof rawCode === "string" && /^(?:P\d{4}|FST_ERR_[A-Z_]{1,48})$/.test(rawCode)
+        ? rawCode : "UNCLASSIFIED";
+      request.log.error({ errorCode, route: request.routeOptions.url }, "Request failed");
+    }
     return reply.code(clientError ? status : ERROR_HTTP_STATUS[code]).send({
       code,
       message: clientError ? "Yêu cầu không hợp lệ." : "Hệ thống gặp lỗi.",

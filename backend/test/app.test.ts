@@ -49,8 +49,24 @@ it("omits raw URLs, headers, bodies and exception details from logs", async () =
   expect(result.json()).toMatchObject({ code: "INTERNAL_ERROR", correlationId: result.headers["x-request-id"] });
   expect(result.body).not.toContain("exception-secret");
   expect(output).toContain("/failure/:id");
+  expect(output).toContain('"errorCode":"UNCLASSIFIED"');
   expect(output).toContain(String(result.headers["x-request-id"]));
   expect(output).not.toContain("-secret");
+});
+
+it("preserves 413 and 415 from the HTTP parser", async () => {
+  app = buildApp(false);
+  app.post("/input", { config: { public: true }, bodyLimit: 16 }, () => ({ ok: true }));
+  for (const [contentType, payload, status] of [
+    ["application/json", JSON.stringify("a".repeat(30)), 413],
+    ["application/octet-stream", "data", 415],
+  ] as const) {
+    const response = await app.inject({
+      method: "POST", url: "/input", headers: { "content-type": contentType }, payload,
+    });
+    expect(response.statusCode).toBe(status);
+    expect(response.json()).toMatchObject({ code: "VALIDATION_ERROR" });
+  }
 });
 
 it("masks display values and redacts unknown or invalid values", () => {

@@ -1,5 +1,11 @@
 # Worklog · be
 
+## 2026-11-13 · Xử lý review trước merge
+
+- **Issue:** TIC-32, TIC-31, TIC-45
+- **Thực hiện bởi:** AI (Codex)
+- **Mục tiêu phiên:** Tách nhánh khỏi TIC-47, tách schema theo phần, chạy PostgreSQL trên CI và sửa lỗi HTTP, audit, startup, rate limit.
+
 ## 2026-11-13 · Dựng API và chuẩn bị schema PostgreSQL cho Sprint 0
 
 - **Issue:** TIC-32, TIC-31
