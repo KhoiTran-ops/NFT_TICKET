@@ -74,7 +74,7 @@ paths:
         OTP hết hạn 5 phút; gửi lại sau 60 giây; tối đa 5 mã/giờ/email và giới hạn theo IP.
       security: []
       x-authz: { permission: public, scope: public, minLevel: L0, mfa: false, audit: false }
-      x-error-codes: [VALIDATION_ERROR, CSRF_INVALID, RATE_LIMITED, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, CSRF_INVALID, RATE_LIMITED, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -98,6 +98,8 @@ paths:
                   resendAvailableAt: { type: string, format: date-time }
         "400": { $ref: "#/components/responses/BadRequest" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -113,7 +115,7 @@ paths:
         trước khi dùng quyền nhân sự.
       security: []
       x-authz: { permission: public, scope: public, minLevel: L0, mfa: false, audit: false }
-      x-error-codes: [VALIDATION_ERROR, OTP_INVALID, CSRF_INVALID, ACCOUNT_LOCKED, OTP_LOCKED, RATE_LIMITED, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, OTP_INVALID, CSRF_INVALID, ACCOUNT_LOCKED, OTP_LOCKED, RATE_LIMITED, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -138,6 +140,8 @@ paths:
               schema: { $ref: "#/components/schemas/Session" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -246,7 +250,7 @@ paths:
       operationId: activateTotp
       summary: Xác nhận mã TOTP đầu tiên để kích hoạt 2FA
       x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: true }
-      x-error-codes: [VALIDATION_ERROR, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, INVALID_STATE, OTP_LOCKED, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, INVALID_STATE, OTP_LOCKED, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -259,6 +263,8 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
@@ -272,7 +278,7 @@ paths:
         Phiên nhân sự tối đa 12 giờ. Thao tác đặc quyền yêu cầu xác thực lại nếu lần cuối quá 15 phút
         (backend trả `MFA_REQUIRED`).
       x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
-      x-error-codes: [VALIDATION_ERROR, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, OTP_LOCKED, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, OTP_LOCKED, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -289,6 +295,8 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -299,7 +307,7 @@ paths:
       summary: Gửi OTP SMS để xác thực SĐT (giả lập ở MVP)
       description: Một SĐT chỉ gắn một tài khoản; SĐT đã gắn tài khoản khác vẫn trả 202 (không lộ).
       x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, CSRF_INVALID, ACCOUNT_LOCKED, RATE_LIMITED, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, CSRF_INVALID, ACCOUNT_LOCKED, RATE_LIMITED, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -324,6 +332,8 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -333,7 +343,7 @@ paths:
       operationId: verifyPhoneOtp
       summary: Xác thực OTP SMS
       x-authz: { permission: self, scope: own, minLevel: L1, mfa: false, audit: false }
-      x-error-codes: [VALIDATION_ERROR, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, ACCOUNT_LOCKED, OTP_LOCKED, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, OTP_INVALID, AUTH_REQUIRED, CSRF_INVALID, ACCOUNT_LOCKED, OTP_LOCKED, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -355,6 +365,8 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -417,7 +429,7 @@ paths:
       operationId: updateDraftEvent
       summary: Sửa sự kiện nháp
       x-authz: { permission: "event:update_draft", scope: organization, roles: [org_owner, org_manager], minLevel: L1, mfa: true, audit: false }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -435,6 +447,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -446,7 +460,7 @@ paths:
       operationId: createEvent
       summary: Tạo sự kiện nháp cho tổ chức
       x-authz: { permission: "event:create", scope: organization, roles: [org_owner, org_manager], minLevel: L1, mfa: true, audit: false }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -464,6 +478,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "500": { $ref: "#/components/responses/InternalError" }
 
   /events/{eventId}/tiers:
@@ -474,7 +490,7 @@ paths:
       operationId: createTier
       summary: Thêm hạng vé cho sự kiện nháp
       x-authz: { permission: "tier:manage", scope: organization, roles: [org_owner, org_manager], minLevel: L1, mfa: true, audit: false }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -492,6 +508,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -504,7 +522,7 @@ paths:
       operationId: updateTier
       summary: Sửa hạng vé của sự kiện nháp
       x-authz: { permission: "tier:manage", scope: organization, roles: [org_owner, org_manager], minLevel: L1, mfa: true, audit: false }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -522,6 +540,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -533,7 +553,7 @@ paths:
       operationId: publishEvent
       summary: Xuất bản sự kiện (draft → published)
       x-authz: { permission: "event:publish", scope: organization, roles: [org_owner], minLevel: L1, mfa: true, audit: true }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -551,6 +571,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -565,7 +587,7 @@ paths:
         Sự kiện `published` → `cancel_requested`: dừng bán sơ cấp, không cho mở phiên mới.
         Vé vẫn dùng được nếu yêu cầu bị từ chối (PRODUCT_CONTEXT 3.3 bước 1).
       x-authz: { permission: "event:cancel_request", scope: organization, roles: [org_owner], minLevel: L1, mfa: true, audit: true }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -590,6 +612,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -626,7 +650,7 @@ paths:
         thanh toán chưa giải ngân (khóa `refund:{payment_id}`). Người gửi yêu cầu không được tự duyệt
         (tách nhiệm vụ 2.3.4) → `ROLE_FORBIDDEN`. Cần TOTP gần đây.
       x-authz: { permission: "event:cancel_approve", scope: platform, roles: [platform_admin], minLevel: L1, mfa: true, audit: true }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -644,6 +668,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -655,7 +681,7 @@ paths:
       operationId: rejectEventCancellation
       summary: platform_admin từ chối hủy → sự kiện trở lại `published`
       x-authz: { permission: "event:cancel_approve", scope: platform, roles: [platform_admin], minLevel: L1, mfa: true, audit: true }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, MFA_REQUIRED, ACCOUNT_LOCKED, ROLE_FORBIDDEN, CSRF_INVALID, NOT_FOUND, INVALID_STATE, INTERNAL_ERROR]
       parameters:
         - $ref: "#/components/parameters/CsrfToken"
       requestBody:
@@ -673,6 +699,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalError" }
 
@@ -691,6 +719,8 @@ paths:
       x-authz: { permission: "order:create", scope: own, minLevel: L2, mfa: false, audit: false }
       x-error-codes:
         - VALIDATION_ERROR
+        - PAYLOAD_TOO_LARGE
+        - UNSUPPORTED_MEDIA_TYPE
         - AUTH_REQUIRED
         - ACCOUNT_LOCKED
         - PHONE_NOT_VERIFIED
@@ -738,6 +768,8 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalError" }
     get:
@@ -827,7 +859,7 @@ paths:
       security:
         - webhookSignature: []
       x-authz: { permission: system, scope: platform, minLevel: L0, mfa: false, audit: false }
-      x-error-codes: [VALIDATION_ERROR, AUTH_REQUIRED, INTERNAL_ERROR]
+      x-error-codes: [VALIDATION_ERROR, PAYLOAD_TOO_LARGE, UNSUPPORTED_MEDIA_TYPE, AUTH_REQUIRED, INTERNAL_ERROR]
       requestBody:
         required: true
         content:
@@ -845,6 +877,8 @@ paths:
         "200": { description: "Đã xử lý (hoặc đã xử lý trước đó)." }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "413": { $ref: "#/components/responses/PayloadTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
         "500": { $ref: "#/components/responses/InternalError" }
 
 components:
@@ -943,6 +977,16 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
+    PayloadTooLarge:
+      description: "Request body vượt giới hạn: PAYLOAD_TOO_LARGE."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UnsupportedMediaType:
+      description: "Content-Type không được hỗ trợ: UNSUPPORTED_MEDIA_TYPE."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     TooManyRequests:
       description: "Vượt giới hạn: RATE_LIMITED, OTP_LOCKED."
       headers:
@@ -1007,6 +1051,8 @@ components:
         - SALE_WINDOW_CLOSED
         - EVENT_NOT_ACTIVE
         - VALIDATION_ERROR
+        - PAYLOAD_TOO_LARGE
+        - UNSUPPORTED_MEDIA_TYPE
         - OTP_INVALID
         - CSRF_INVALID
         - NOT_FOUND
