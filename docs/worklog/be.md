@@ -9,6 +9,7 @@
 - **Runtime:** Đọc `TRUSTED_PROXY_CIDRS` lúc khởi động và chỉ tin các IP/CIDR đã cấu hình. Kiểm thử hai khách sau proxy và header giả từ peer trực tiếp. Tách bootstrap để test trực tiếp mã nguồn.
 - **Bằng chứng local:** 113 test thường pass khi cả `backend/dist` và `packages/shared/dist` tạm thời không có. Build, typecheck, lint và OpenAPI lint pass.
 - **CI:** Đồng bộ trigger và phiên bản actions với `claude/lead-sprint0`. Workflow apps bổ sung PostgreSQL service và bước test tích hợp.
+- **Nhánh:** Đã xóa ba ref cũ trên origin sau khi kiểm tra không có PR mở dùng chúng. PR TIC-45 dùng `fix/TIC-32-http-error-contract` làm base để hợp đồng lỗi được review riêng.
 
 ## 2026-11-13 · Xử lý review trước merge
 
