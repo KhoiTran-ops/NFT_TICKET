@@ -21,3 +21,29 @@ it("rate limits only the event list and ignores untrusted forwarded IPs", async 
     await app.close();
   }
 });
+
+it("separates clients behind a trusted proxy and rejects forged forwarding from other peers", async () => {
+  const app = buildApp(false, ["10.20.30.8/32"]);
+  const db = { event: { findMany: vi.fn().mockResolvedValue([]) } };
+  registerPublicEventRoutes(app, db);
+  const viaProxy = (clientIp, prefix = "") => app.inject({
+    url: "/events",
+    remoteAddress: "10.20.30.8",
+    headers: { "x-forwarded-for": prefix + clientIp },
+  });
+  try {
+    for (let i = 0; i < 60; i++) {
+      expect((await viaProxy("192.0.2.10")).statusCode).toBe(200);
+    }
+    expect((await viaProxy("192.0.2.10", "192.0.2.99, ")).statusCode).toBe(429);
+    expect((await viaProxy("192.0.2.11")).statusCode).toBe(200);
+    for (let i = 0; i < 60; i++) {
+      expect((await app.inject({ url: "/events", remoteAddress: "192.0.2.12" })).statusCode).toBe(200);
+    }
+    expect((await app.inject({
+      url: "/events", remoteAddress: "192.0.2.12", headers: { "x-forwarded-for": "192.0.2.11" },
+    })).statusCode).toBe(429);
+  } finally {
+    await app.close();
+  }
+});

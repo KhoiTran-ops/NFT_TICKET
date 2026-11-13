@@ -10,7 +10,7 @@ declare module "fastify" {
   }
 }
 
-export function buildApp(logger: FastifyServerOptions["logger"] = true) {
+export function buildApp(logger: FastifyServerOptions["logger"] = true, trustedProxies: string[] = []) {
   const app = fastify({
     logger: logger === false ? false : {
       ...(typeof logger === "object" ? logger : {}),
@@ -18,6 +18,7 @@ export function buildApp(logger: FastifyServerOptions["logger"] = true) {
       redact: { paths: ["req", "res", "err"], remove: true },
     },
     logController: new LogController({ disableRequestLogging: true }),
+    trustProxy: trustedProxies.length > 0 ? trustedProxies : false,
     requestIdHeader: false,
     genReqId: () => randomUUID(),
   });
@@ -58,7 +59,8 @@ export function buildApp(logger: FastifyServerOptions["logger"] = true) {
     const rawCode = "code" in details ? details.code : "errorCode" in details ? details.errorCode : undefined;
     const clientError = typeof status === "number" && Number.isInteger(status) && status >= 400 && status < 500;
     const limited = status === 429 && rawCode === "RATE_LIMITED";
-    const code = limited ? "RATE_LIMITED" : clientError ? "VALIDATION_ERROR" : "INTERNAL_ERROR";
+    const parserCode = status === 413 ? "PAYLOAD_TOO_LARGE" : status === 415 ? "UNSUPPORTED_MEDIA_TYPE" : undefined;
+    const code = parserCode ?? (limited ? "RATE_LIMITED" : clientError ? "VALIDATION_ERROR" : "INTERNAL_ERROR");
     if (!clientError) {
       const errorCode = typeof rawCode === "string" && /^(?:P\d{4}|FST_ERR_[A-Z_]{1,48})$/.test(rawCode)
         ? rawCode : "UNCLASSIFIED";
@@ -66,8 +68,13 @@ export function buildApp(logger: FastifyServerOptions["logger"] = true) {
     }
     return reply.code(clientError ? status : ERROR_HTTP_STATUS[code]).send({
       code,
-      message: limited ? "Bạn gửi quá nhiều yêu cầu. Vui lòng thử lại sau."
-        : clientError ? "Yêu cầu không hợp lệ." : "Hệ thống gặp lỗi.",
+      message: {
+        PAYLOAD_TOO_LARGE: "Nội dung yêu cầu vượt giới hạn.",
+        UNSUPPORTED_MEDIA_TYPE: "Định dạng nội dung yêu cầu không được hỗ trợ.",
+        RATE_LIMITED: "Bạn gửi quá nhiều yêu cầu. Vui lòng thử lại sau.",
+        VALIDATION_ERROR: "Yêu cầu không hợp lệ.",
+        INTERNAL_ERROR: "Hệ thống gặp lỗi.",
+      }[code],
       action: ErrorAction.None,
       correlationId: request.id,
     } satisfies ApiError);

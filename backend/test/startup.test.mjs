@@ -1,19 +1,46 @@
-import { spawnSync } from "node:child_process";
-import { expect, it } from "vitest";
+import { beforeEach, expect, it, vi } from "vitest";
+import { startBackend } from "../src/startup.js";
+
+const { connect, disconnect, listen } = vi.hoisted(() => ({
+  connect: vi.fn(), disconnect: vi.fn(), listen: vi.fn(),
+}));
+vi.mock("@prisma/client", () => ({
+  Prisma: { PrismaClientInitializationError: Error },
+  PrismaClient: class {
+    $connect = connect;
+    $disconnect = disconnect;
+  },
+}));
+vi.mock("../src/index.js", () => ({
+  buildApp: () => {
+    let onClose;
+    return {
+      addHook: (_name, hook) => { onClose = hook; },
+      listen,
+      close: async () => onClose?.(),
+    };
+  },
+}));
+vi.mock("../src/modules/events/public-events.js", () => ({ registerPublicEventRoutes: vi.fn() }));
+
+const validDatabaseUrl = "postgresql://test@127.0.0.1/db";
+beforeEach(() => vi.clearAllMocks());
 
 it.each([
-  ["DATABASE_URL_MISSING", undefined],
-  ["DATABASE_URL_INVALID", "https://db-user:fixture-secret@localhost/db"],
-  ["DATABASE_CONNECT", "postgresql://db-user:fixture-secret@127.0.0.1:1/db?connect_timeout=1"],
-])("exits before listening on startup error %s", (stage, databaseUrl) => {
-  const env = { ...process.env };
-  delete env.DATABASE_URL;
-  if (databaseUrl) env.DATABASE_URL = databaseUrl;
-  const result = spawnSync(process.execPath, ["dist/main.js"], {
-    env, encoding: "utf8", timeout: 5_000,
-  });
-  expect(result.error).toBeUndefined();
-  expect(result.status).toBe(1);
-  expect(result.stdout).toContain(stage);
-  expect(result.stdout + result.stderr).not.toMatch(/fixture-secret|Server listening/);
+  ["DATABASE_URL_MISSING", {}],
+  ["DATABASE_URL_INVALID", { DATABASE_URL: "https://localhost/db" }],
+  ["TRUSTED_PROXY_CIDRS_INVALID", { DATABASE_URL: validDatabaseUrl, TRUSTED_PROXY_CIDRS: "true" }],
+  ["TRUSTED_PROXY_CIDRS_INVALID", { DATABASE_URL: validDatabaseUrl, TRUSTED_PROXY_CIDRS: "0.0.0.0/0" }],
+])("rejects invalid config before connecting or listening (%s)", async (stage, env) => {
+  expect(await startBackend(env)).toMatchObject({ failure: { stage } });
+  expect(connect).not.toHaveBeenCalled();
+  expect(listen).not.toHaveBeenCalled();
+});
+
+it("closes the DB and returns only the safe error code when connection fails", async () => {
+  connect.mockRejectedValueOnce(Object.assign(new Error("fixture-secret"), { errorCode: "P1001" }));
+  const result = await startBackend({ DATABASE_URL: validDatabaseUrl });
+  expect(result).toEqual({ failure: { stage: "DATABASE_CONNECT", errorCode: "P1001" } });
+  expect(disconnect).toHaveBeenCalledOnce();
+  expect(listen).not.toHaveBeenCalled();
 });
