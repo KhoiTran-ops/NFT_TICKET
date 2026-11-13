@@ -1,7 +1,73 @@
-// Khung tối thiểu (TIC-27). BE thay bằng NestJS/Fastify + healthcheck + logger maskPii() ở S0-06 (TIC-32).
-import { FUJI_CHAIN_ID } from "@nft-ticket/shared";
+import { randomUUID } from "node:crypto";
+import fastify, { LogController } from "fastify";
+import type { FastifyServerOptions } from "fastify";
+import { ERROR_HTTP_STATUS, ErrorAction } from "@nft-ticket/shared";
+import type { ApiError } from "@nft-ticket/shared";
 
-export const backendInfo = {
-  name: "backend",
-  chainId: FUJI_CHAIN_ID,
-} as const;
+declare module "fastify" {
+  interface FastifyContextConfig {
+    public?: true;
+  }
+}
+
+export function buildApp(logger: FastifyServerOptions["logger"] = true) {
+  const app = fastify({
+    logger: logger === false ? false : {
+      ...(typeof logger === "object" ? logger : {}),
+      // Framework logs outside the normal request lifecycle can carry raw HTTP packets.
+      redact: { paths: ["req", "res", "err"], remove: true },
+    },
+    logController: new LogController({ disableRequestLogging: true }),
+    requestIdHeader: false,
+    genReqId: () => randomUUID(),
+  });
+
+  app.addHook("onRequest", async (request, reply) => {
+    reply.header("x-content-type-options", "nosniff");
+    reply.header("x-request-id", request.id);
+    if (request.routeOptions.url && request.routeOptions.config.public !== true) {
+      return reply.code(401).send({
+        code: "AUTH_REQUIRED",
+        message: "Đăng nhập để tiếp tục.",
+        action: ErrorAction.Login,
+        correlationId: request.id,
+      } satisfies ApiError);
+    }
+  });
+
+  app.addHook("onResponse", async (request, reply) => {
+    request.log.info({
+      route: request.routeOptions.url ?? "unmatched",
+      status: reply.statusCode,
+      elapsedMs: reply.elapsedTime,
+    }, "Request completed");
+  });
+
+  app.setNotFoundHandler((request, reply) => {
+    return reply.code(404).send({
+      code: "NOT_FOUND",
+      message: "Không tìm thấy tài nguyên.",
+      action: ErrorAction.None,
+      correlationId: request.id,
+    } satisfies ApiError);
+  });
+
+  app.setErrorHandler((error, request, reply) => {
+    const status = typeof error === "object" && error !== null && "statusCode" in error
+      ? error.statusCode : undefined;
+    const clientError = typeof status === "number" && Number.isInteger(status) && status >= 400 && status < 500;
+    const code = clientError ? "VALIDATION_ERROR" : "INTERNAL_ERROR";
+    if (!clientError) request.log.error("Request failed");
+    return reply.code(clientError ? status : ERROR_HTTP_STATUS[code]).send({
+      code,
+      message: clientError ? "Yêu cầu không hợp lệ." : "Hệ thống gặp lỗi.",
+      action: ErrorAction.None,
+      correlationId: request.id,
+    } satisfies ApiError);
+  });
+
+  app.get("/health", { config: { public: true }, exposeHeadRoute: false }, async () => ({
+    status: "ok",
+  }));
+  return app;
+}
