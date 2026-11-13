@@ -1,5 +1,12 @@
 # Worklog · be
 
+## 2026-11-13 · Hoàn thiện API và cấu hình triển khai sau review
+
+- **Issue:** TIC-32, TIC-45
+- **Thực hiện bởi:** AI (Codex)
+- **Mục tiêu phiên:** Đồng bộ lỗi HTTP với OpenAPI, cấu hình proxy, chạy test startup từ mã nguồn và đồng bộ workflow với LEAD.
+- **Hợp đồng API:** Đề xuất `PAYLOAD_TOO_LARGE` (413) và `UNSUPPORTED_MEDIA_TYPE` (415) cho các endpoint nhận body. `VALIDATION_ERROR` giữ HTTP 400. Nhánh riêng `fix/TIC-32-http-error-contract` cần hai lượt duyệt.
+
 ## 2026-11-13 · Xử lý review trước merge
 
 - **Issue:** TIC-32, TIC-31, TIC-45
