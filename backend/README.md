@@ -12,7 +12,7 @@ pnpm --filter backend test
 
 - Mặc định lắng nghe tại `127.0.0.1:4000`. Đặt `HOST` và `PORT` trong `.env` ở root để đổi.
 - Log chỉ ghi mã tương quan, route template, mã HTTP và thời lượng cho request. Dùng `maskPii()` cho dữ liệu được phép hiển thị một phần.
-- Healthcheck chạy độc lập với PostgreSQL và Avalanche. Các luồng ghi nhận NFT sẽ dùng Avalanche Fuji C-Chain, ID 43113, theo cấu hình trong `@nft-ticket/shared`.
+- Server yêu cầu `DATABASE_URL` hợp lệ và kết nối được PostgreSQL trước khi nhận request. Sau khi khởi động, `GET /health` kiểm tra tiến trình. Các luồng ghi nhận NFT sẽ dùng Avalanche Fuji C-Chain, ID 43113, theo cấu hình trong `@nft-ticket/shared`.
 
 Tham khảo [Fastify Logging](https://fastify.dev/docs/latest/Reference/Logging/) và [Avalanche Primary Network](https://build.avax.network/docs/primary-network#c-chain-contract-chain).
 
@@ -28,3 +28,5 @@ Các ràng buộc ngoài Prisma schema nằm trong migration SQL. Khi đổi sch
 Nếu đã chạy migration `20261113000000_init` từ nhánh review cũ, dùng schema hoặc database phát triển mới cho nhánh này. Giữ lại dữ liệu cũ nếu cần.
 
 Đặt `ALLOW_DEMO_SEED=true` rồi chạy `pnpm --filter backend db:seed` để tạo một sự kiện nháp và hạng vé trên PostgreSQL local. Giá lưu bằng số nguyên VND. ID sự kiện và vé lưu đủ độ chính xác `uint256`, phân biệt theo chain ID và địa chỉ registry.
+
+`GET /events` dùng `@fastify/rate-limit` để thực thi `429 RATE_LIMITED` và `Retry-After` theo OpenAPI. Mặc định là 60 request/phút theo IP kết nối trên một tiến trình. Nếu chạy nhiều replica hoặc qua reverse proxy, cấu hình giới hạn chung ở ingress và chỉ tin IP do proxy đã xác thực chuyển tiếp. [Tài liệu Fastify rate limit](https://github.com/fastify/fastify-rate-limit)
