@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import fastify, { LogController } from "fastify";
-import type { FastifyServerOptions } from "fastify";
+import type { FastifyServerOptions, onRequestAsyncHookHandler } from "fastify";
 import { ERROR_HTTP_STATUS, ErrorAction } from "@nft-ticket/shared";
 import type { ApiError } from "@nft-ticket/shared";
 
 declare module "fastify" {
   interface FastifyContextConfig {
     public?: true;
+    authenticate?: onRequestAsyncHookHandler;
   }
 }
 
@@ -26,7 +27,8 @@ export function buildApp(logger: FastifyServerOptions["logger"] = true, trustedP
   app.addHook("onRequest", async (request, reply) => {
     reply.header("x-content-type-options", "nosniff");
     reply.header("x-request-id", request.id);
-    if (request.routeOptions.url && request.routeOptions.config.public !== true) {
+    if (request.routeOptions.url && request.routeOptions.config.public !== true
+      && !request.routeOptions.config.authenticate) {
       return reply.code(401).send({
         code: "AUTH_REQUIRED",
         message: "Đăng nhập để tiếp tục.",
@@ -34,6 +36,15 @@ export function buildApp(logger: FastifyServerOptions["logger"] = true, trustedP
         correlationId: request.id,
       } satisfies ApiError);
     }
+  });
+
+  // Run each route's authenticator first among its own onRequest hooks: after cookie parsing in its
+  // scope, before CSRF, body parsing and validation (PRODUCT_CONTEXT 2.3: session is checked first).
+  app.addHook("onRoute", (route) => {
+    const authenticate = route.config?.authenticate;
+    if (!authenticate) return;
+    const existing = route.onRequest === undefined ? [] : Array.isArray(route.onRequest) ? route.onRequest : [route.onRequest];
+    route.onRequest = [authenticate, ...existing];
   });
 
   app.addHook("onResponse", async (request, reply) => {

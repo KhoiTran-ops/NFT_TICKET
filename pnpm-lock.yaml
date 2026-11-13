@@ -35,6 +35,9 @@ importers:
 
   backend:
     dependencies:
+      '@fastify/cookie':
+        specifier: 11.1.5
+        version: 11.1.5
       '@fastify/rate-limit':
         specifier: 11.2.2
         version: 11.2.2
@@ -47,7 +50,19 @@ importers:
       fastify:
         specifier: 5.12.8
         version: 5.12.8
+      jose:
+        specifier: 6.2.17
+        version: 6.2.17
+      nodemailer:
+        specifier: 10.5.0
+        version: 10.5.0
+      otpauth:
+        specifier: 9.6.0
+        version: 9.6.0
     devDependencies:
+      '@types/nodemailer':
+        specifier: 8.0.2
+        version: 8.0.2
       prisma:
         specifier: 6.19.3
         version: 6.19.3(typescript@5.9.3)
@@ -119,6 +134,9 @@ packages:
   '@fastify/ajv-compiler@4.0.7':
     resolution: {integrity: sha512-VP0yIfwlc1ohj733keYDqyHm1VWeP9VQxYomunhr90jkC4aNNibbkrRiaNgPgqj1ORxUenILR4qzA/ppYBNAtQ==}
 
+  '@fastify/cookie@11.1.5':
+    resolution: {integrity: sha512-hs7e0otf7n/lJMpt63EFdQb5/u8kO6DeexEtLPVTybSdItC6SwJ1O0vtTyWvKNR70LZcHLlsUr/y3jFpqtyWRA==}
+
   '@fastify/deepmerge@3.2.4':
     resolution: {integrity: sha512-kc8GQq5gX9RRhw0rov3DMrN8wS8yRlxJRdDzsYwwdBV/wazuVgc/1K7CKL90tlvu3RlHan6Y0R0aE3nJtBz2eQ==}
 
@@ -182,6 +200,10 @@ packages:
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
     engines: {node: '>=8'}
+
+  '@noble/hashes@2.4.0':
+    resolution: {integrity: sha512-X5XaVWZIBCT7HHZGm5I7ZQXDwLG+bGXuSrMQAW+7Zvl87h1kmc1ZB1VSRJcpUfoUrGQp4Fkoxm5kZ+Ms+aW+eA==}
+    engines: {node: '>= 20.19.0'}
 
   '@oxc-project/types@0.156.0':
     resolution: {integrity: sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw==}
@@ -337,6 +359,9 @@ packages:
 
   '@types/node@22.20.5':
     resolution: {integrity: sha512-U2+DNr+wSjpsTS/wZGYHq7GcwfuSmKiKvoPvK22zwTlRhU91yOniN4qRR5KhIjvif7ysw/dz/hKmfDH0Ris4aA==}
+
+  '@types/nodemailer@8.0.2':
+    resolution: {integrity: sha512-c7M5ox8p0nEOfbJ2E9Qcmt8/QCu/VzsiAhzBiZbvky2PhKZDHpKB3sQHBM5MEZNkCfBOaS6S9//AGPRTNB7IaA==}
 
   '@typescript-eslint/eslint-plugin@8.72.2':
     resolution: {integrity: sha512-222PKFXKihmFpi/pS5njoBgdAqsPhj2/GBmFbrNw8Tq8gEG9Sv+kSlKFy4u2q+mJv9ZzJgM2Gkv/bUzRZwZw5g==}
@@ -725,6 +750,9 @@ packages:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
 
+  jose@6.2.17:
+    resolution: {integrity: sha512-wOuK9V1yujQFH5S0ZWmLcDZN7+IKh9bUCC2ZPCf2HDlol3WWHy+PPyNjEI75FXRLMp3vDKQcupP59xhVU95hcg==}
+
   json-schema-ref-resolver@3.0.1:
     resolution: {integrity: sha512-w+HwgljXpVwZ3IidoUR1qPZxSOQ+NRQWuVe6a5pe8XbHsNZE4UAwVPUvzZagn7yBKbJtt6UJnRFYbNTRPZI45Q==}
 
@@ -842,6 +870,10 @@ packages:
   node-fetch-native@1.6.7:
     resolution: {integrity: sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==}
 
+  nodemailer@10.5.0:
+    resolution: {integrity: sha512-L/w/HH5MqpzMDuZD7fQdt/+KqymuvrpaApaIjAH2XA3ILePwlcvXCVVvP75xVrXCEt2ggK2marrrHHFB5Qu0kA==}
+    engines: {node: '>=20.0.0'}
+
   nypm@0.6.12:
     resolution: {integrity: sha512-4AhWntz+ds/P5kz1rN25yGegTPYsO5ffOy+8S0TeuXKZrgjlmgcEBLA1xubzcP/dWX4zYfNybv4TQERlL9Z0LQ==}
     engines: {node: '>=18'}
@@ -861,6 +893,9 @@ packages:
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
     engines: {node: '>= 0.8.0'}
+
+  otpauth@9.6.0:
+    resolution: {integrity: sha512-qQXHTxcXohDhQjF1ZEbUVEpTIssFL2rd+2kHfw/McIVCbTLD6qAsbTCQxpXRLyeyUw6Ipjpykw4dWZL/zfIVqA==}
 
   p-limit@3.1.0:
     resolution: {integrity: sha512-TYOanM3wGwNGsZN2cVTYPArw454xnXj5qmWF1bEoAc4+cU/ol7GVh7odevjp1FNHduHc3KZMcFduxU5Xc6uJRQ==}
@@ -1219,6 +1254,11 @@ snapshots:
       ajv-formats: 3.0.1(ajv@8.20.0)
       fast-uri: 4.2.3
 
+  '@fastify/cookie@11.1.5':
+    dependencies:
+      cookie: 2.0.2
+      fastify-plugin: 6.0.1
+
   '@fastify/deepmerge@3.2.4': {}
 
   '@fastify/error@4.2.1': {}
@@ -1279,6 +1319,8 @@ snapshots:
   '@keyv/serialize@1.1.1': {}
 
   '@lukeed/ms@2.0.2': {}
+
+  '@noble/hashes@2.4.0': {}
 
   '@oxc-project/types@0.156.0': {}
 
@@ -1386,6 +1428,10 @@ snapshots:
   '@types/node@22.20.5':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/nodemailer@8.0.2':
+    dependencies:
+      '@types/node': 22.20.5
 
   '@typescript-eslint/eslint-plugin@8.72.2(@typescript-eslint/parser@8.72.2(eslint@10.14.0(jiti@2.7.0))(typescript@5.9.3))(eslint@10.14.0(jiti@2.7.0))(typescript@5.9.3)':
     dependencies:
@@ -1808,6 +1854,8 @@ snapshots:
 
   jiti@2.7.0: {}
 
+  jose@6.2.17: {}
+
   json-schema-ref-resolver@3.0.1:
     dependencies:
       dequal: 2.0.3
@@ -1903,6 +1951,8 @@ snapshots:
 
   node-fetch-native@1.6.7: {}
 
+  nodemailer@10.5.0: {}
+
   nypm@0.6.12:
     dependencies:
       citty: 0.2.2
@@ -1923,6 +1973,10 @@ snapshots:
       prelude-ls: 1.2.1
       type-check: 0.4.0
       word-wrap: 1.2.5
+
+  otpauth@9.6.0:
+    dependencies:
+      '@noble/hashes': 2.4.0
 
   p-limit@3.1.0:
     dependencies:
