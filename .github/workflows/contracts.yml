@@ -1,9 +1,9 @@
 name: contracts
 
+# Chạy trên mọi push (mọi nhánh) để nhánh làm việc có kết quả CI trước khi mở PR;
+# check gắn với commit nên PR dùng lại kết quả này.
 on:
-  pull_request:
   push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -23,7 +23,7 @@ jobs:
     env:
       FOUNDRY_PROFILE: ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -42,3 +42,31 @@ jobs:
 
       - name: forge test
         run: forge test -vv
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+
+      # Sinh ABI + địa chỉ cho packages/shared. Khi ABI đã được commit thì bắt buộc khớp contract hiện tại.
+      - name: Export ABI
+        run: node scripts/export-abi.mjs
+
+      - name: ABI committed is up to date
+        run: |
+          if git ls-files --error-unmatch ../packages/shared/src/abi >/dev/null 2>&1; then
+            if [ -n "$(git status --porcelain -- ../packages/shared/src)" ]; then
+              echo "::error::ABI/addresses trong packages/shared chưa cập nhật. Chạy: pnpm --filter contracts abi:export"
+              git status --porcelain -- ../packages/shared/src
+              exit 1
+            fi
+          else
+            echo "::notice::ABI chưa commit vào packages/shared (sẽ commit sau khi deploy Fuji - TIC-48)."
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: abi
+          path: |
+            packages/shared/src/abi/
+            packages/shared/src/addresses.ts

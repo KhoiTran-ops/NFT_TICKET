@@ -1,5 +1,33 @@
 # Worklog · lead
 
+## 2026-11-10 · S1-11 contract EventRegistry + TicketRegistry, chuẩn bị deploy Fuji
+
+- **Issue:** TIC-47 (S1-11), chuẩn bị TIC-48 (S1-12)
+- **Thực hiện bởi:** AI (Claude Code), theo yêu cầu của trưởng nhóm. Commit đứng tên trưởng nhóm, không có dòng Claude.
+- **Thứ tự:** trưởng nhóm muốn "tạo chain → xin faucet → deploy testnet". Theo BACKLOG, TIC-47 (contract + test) phải xong trước TIC-48 (deploy Fuji + export ABI), nên làm TIC-47 trước. TIC-30 (chốt D-002/D-004/D-007) vẫn là việc con người, không đụng.
+- **Đã làm:**
+  - `EventRegistry`: admin thêm/bớt issuer, issuer tạo sự kiện kèm `Policy` (resaleAllowed, priceCapBps, maxTransfers, transferDeadline), admin hủy sự kiện.
+  - `TicketRegistry` (ERC-721, OpenZeppelin v5.4.0): chặn mọi `transferFrom`/`safeTransferFrom`. Chỉ mint (issuer của sự kiện, `batchIssue`) và `escrowTransfer` (ESCROW_ROLE) đổi được chủ. `markUsed` chỉ SCANNER_ROLE. `revoke` chỉ issuer, không áp dụng cho vé Listed. Vé của sự kiện đã hủy đọc ra `Void` (trừ vé đã thu hồi). `escrowTransfer` kiểm tra resaleAllowed, hạn chót, số lần chuyển, issuer của sự kiện không mua/bán.
+  - 46 test Foundry (13 EventRegistry + 33 TicketRegistry, có 2 fuzz test, mỗi cái 1000 lần chạy). Mỗi role bị từ chối có test riêng.
+  - `script/Deploy.s.sol` ghi `deployments/fuji.json`. `scripts/export-abi.mjs` xuất ABI + địa chỉ sang `packages/shared/src/abi`, `addresses.ts`.
+  - CI chạy trên **mọi push** (trước đây chỉ PR/`main`, nên chưa chạy lần nào). Thêm bước kiểm tra ABI trong `packages/shared` khớp contract. Nâng `actions/checkout`, `actions/setup-node` lên v5 (Node 20 deprecated).
+- **Bằng chứng:** CI GitHub Actions (forge 1.9.0, solc 0.8.24): `forge fmt --check`, `forge build`, `forge test` xanh, 46/46 pass. `apps` xanh. Local không có forge (proxy chặn tải Foundry), nên kiểm tra contract hoàn toàn dựa vào CI.
+- **Quyết định phát sinh:** không. Có điểm cần chốt (bên dưới).
+- **Bị chặn:**
+  - **Deploy Fuji từ phiên AI không làm được:** proxy chặn RPC `api.avax-test.network` (403), không có forge local, và cần ví có AVAX testnet. **Faucet** (<https://core.app/tools/testnet-faucet/>) cần người đăng nhập/qua captcha → trưởng nhóm làm. Các bước có trong `contracts/README.md` mục "Deploy Fuji".
+- **Cần trưởng nhóm xem:**
+  - **Mâu thuẫn tài liệu:** PRODUCT_CONTEXT 2.4 ghi `cancelEvent` thuộc `ISSUER_ROLE`; PIPELINE mục 4 và 3.3 bước 6 ghi admin/relayer gọi sau khi `platform_admin` duyệt. Code đang để **chỉ admin** để giữ tách nhiệm vụ 2.3.4 (issuer không tự hủy). Cần sửa một trong hai tài liệu.
+  - `SCANNER_ROLE` là role toàn cục cấp cho relayer (theo PRODUCT_CONTEXT 2.4), không làm `setScanner(eventId, …)` theo sự kiện như PIPELINE mục 4.
+  - `batchIssue` yêu cầu chính ví issuer ký. Nếu mint sau thanh toán do relayer gửi (S2-07), cần chốt: ví issuer custodial do backend giữ, hay cho relayer một role mint riêng.
+  - Chưa chặn `approve`/`setApprovalForAll` (vô hại vì không chuyển được), chưa có `tokenURI` (metadata không PII làm sau).
+  - 4 commit cũ của phiên trước (`947be29`…`97c7e0e`) còn dòng `Claude-Session`. Muốn bỏ phải rewrite + force-push nhánh `claude/lead-sprint0`; lệnh này bị chặn quyền trong phiên. Commit mới không có dòng đó.
+- **Việc tiếp theo:**
+  - [ ] Trưởng nhóm: tạo ví testnet, xin faucet, chạy deploy theo `contracts/README.md`, commit `deployments/fuji.json` (TIC-48)
+  - [ ] Sau deploy: `pnpm --filter contracts abi:export` để có địa chỉ trong `packages/shared`
+  - [ ] Chốt quyền `cancelEvent` và cách mint qua relayer
+  - [ ] Sprint 3: `ResaleEscrow` + `MockStable`
+
+
 ## 2026-11-10 · Sprint 0 LEAD: monorepo, CI, packages/shared v0
 
 - **Issue:** TIC-27 (S0-01), TIC-28 (S0-02), TIC-29 (S0-03)

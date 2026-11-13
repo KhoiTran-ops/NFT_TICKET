@@ -6,6 +6,9 @@
   "scripts": {
     "forge:build": "forge build --sizes",
     "forge:test": "forge test -vv",
-    "forge:fmt": "forge fmt --check"
+    "forge:fmt": "forge fmt --check",
+    "abi:export": "node scripts/export-abi.mjs",
+    "deploy:fuji": "forge script script/Deploy.s.sol --rpc-url fuji --broadcast",
+    "deploy:anvil": "forge script script/Deploy.s.sol --rpc-url anvil --broadcast"
   }
 }
