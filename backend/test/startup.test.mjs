@@ -24,6 +24,10 @@ vi.mock("../src/index.js", () => ({
 vi.mock("../src/modules/events/public-events.js", () => ({ registerPublicEventRoutes: vi.fn() }));
 
 const validDatabaseUrl = "postgresql://test@127.0.0.1/db";
+const validAuth = {
+  JWT_SECRET: "1".repeat(64), OTP_PEPPER: "2".repeat(64), FIELD_ENCRYPTION_KEY: "3".repeat(64),
+  SMTP_HOST: "smtp.example.test", SMTP_PORT: "587", OTP_FROM: "no-reply@example.test",
+};
 beforeEach(() => vi.clearAllMocks());
 
 it.each([
@@ -31,6 +35,9 @@ it.each([
   ["DATABASE_URL_INVALID", { DATABASE_URL: "https://localhost/db" }],
   ["TRUSTED_PROXY_CIDRS_INVALID", { DATABASE_URL: validDatabaseUrl, TRUSTED_PROXY_CIDRS: "true" }],
   ["TRUSTED_PROXY_CIDRS_INVALID", { DATABASE_URL: validDatabaseUrl, TRUSTED_PROXY_CIDRS: "0.0.0.0/0" }],
+  ["AUTH_CONFIG_INVALID", { DATABASE_URL: validDatabaseUrl }],
+  ["AUTH_CONFIG_INVALID", { DATABASE_URL: validDatabaseUrl, ...validAuth, FIELD_ENCRYPTION_KEY: undefined }],
+  ["AUTH_CONFIG_INVALID", { DATABASE_URL: validDatabaseUrl, ...validAuth, OTP_PEPPER: validAuth.JWT_SECRET }],
 ])("rejects invalid config before connecting or listening (%s)", async (stage, env) => {
   expect(await startBackend(env)).toMatchObject({ failure: { stage } });
   expect(connect).not.toHaveBeenCalled();
@@ -39,7 +46,7 @@ it.each([
 
 it("closes the DB and returns only the safe error code when connection fails", async () => {
   connect.mockRejectedValueOnce(Object.assign(new Error("fixture-secret"), { errorCode: "P1001" }));
-  const result = await startBackend({ DATABASE_URL: validDatabaseUrl });
+  const result = await startBackend({ DATABASE_URL: validDatabaseUrl, ...validAuth });
   expect(result).toEqual({ failure: { stage: "DATABASE_CONNECT", errorCode: "P1001" } });
   expect(disconnect).toHaveBeenCalledOnce();
   expect(listen).not.toHaveBeenCalled();

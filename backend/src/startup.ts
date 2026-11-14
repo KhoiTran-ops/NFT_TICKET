@@ -2,6 +2,9 @@ import { isIP } from "node:net";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { buildApp } from "./index.js";
 import { registerPublicEventRoutes } from "./modules/events/public-events.js";
+import { authConfig } from "./modules/auth/config.js";
+import { registerAuthRoutes } from "./modules/auth/routes.js";
+import { registerEventManagement } from "./modules/events/manage.js";
 
 export async function startBackend(env: NodeJS.ProcessEnv) {
   let stage = "PORT_INVALID";
@@ -29,13 +32,18 @@ export async function startBackend(env: NodeJS.ProcessEnv) {
         throw new Error(stage);
       }
     }
+    stage = "AUTH_CONFIG_INVALID";
+    const auth = authConfig(env);
     app = buildApp(true, trustedProxies);
 
     stage = "DATABASE_CONNECT";
     const db = new PrismaClient({ datasourceUrl: databaseUrl });
     app.addHook("onClose", async () => db.$disconnect());
     await db.$connect();
-    registerPublicEventRoutes(app, db);
+    registerAuthRoutes(app, db, auth, (scope, access) => {
+      registerPublicEventRoutes(scope, db, access);
+      registerEventManagement(scope, db, access);
+    });
     stage = "HTTP_LISTEN";
     await app.listen({ port, host: env.HOST ?? "127.0.0.1" });
     return { app } as const;
