@@ -1,0 +1,1421 @@
+<title>NFT Ticket</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+/* Layout: sticky header + demo bar, one centered column (max 1120px); tickets drawn as stubs with a perforated tear-off. */
+:root{
+  --bg:#F3F5F3; --surface:#FFFFFF; --surface-2:#E9EEEB; --fg:#14201B; --muted:#47544E; --line:#D3DBD7;
+  --accent:#0D6B5B; --accent-fg:#FFFFFF; --accent-soft:#DCEFE9;
+  --ok:#1D7438; --ok-bg:#E1F2E5; --warn:#8F5600; --warn-bg:#FBEDD5; --danger:#B42318; --danger-bg:#FCE6E3; --info:#1F4CC4; --info-bg:#E3EAFC;
+  --shadow:0 1px 2px rgba(20,32,27,.06),0 4px 16px rgba(20,32,27,.05);
+  --f-ui:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1412; --surface:#151D1A; --surface-2:#1D2723; --fg:#E6EEEA; --muted:#A8B5AF; --line:#2B3732;
+  --accent:#43C0A6; --accent-fg:#05201A; --accent-soft:#133A31;
+  --ok:#6FD08D; --ok-bg:#14301E; --warn:#F0B65C; --warn-bg:#3A2A10; --danger:#F28B80; --danger-bg:#3C1A16; --info:#93B2FF; --info-bg:#1A2446;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1412; --surface:#151D1A; --surface-2:#1D2723; --fg:#E6EEEA; --muted:#A8B5AF; --line:#2B3732;
+  --accent:#43C0A6; --accent-fg:#05201A; --accent-soft:#133A31;
+  --ok:#6FD08D; --ok-bg:#14301E; --warn:#F0B65C; --warn-bg:#3A2A10; --danger:#F28B80; --danger-bg:#3C1A16; --info:#93B2FF; --info-bg:#1A2446;
+  --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-ui);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--surface)}
+a{color:var(--accent)}
+h1,h2,h3{line-height:1.25;text-wrap:balance;margin:0}
+h1{font-size:1.75rem;font-weight:700;letter-spacing:-.01em}
+h2{font-size:1.25rem;font-weight:700}
+h3{font-size:1.02rem;font-weight:600}
+p{margin:0}
+.mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+
+/* header */
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.top .wrap{display:flex;align-items:center;gap:16px;min-height:60px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;color:var(--fg);font-size:1.05rem;white-space:nowrap}
+.brand-mark{width:30px;height:22px;border-radius:5px;background:var(--accent);position:relative;flex:none}
+.brand-mark::before,.brand-mark::after{content:"";position:absolute;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--surface)}
+.brand-mark::before{left:-4px}.brand-mark::after{right:-4px}
+nav.main{display:flex;gap:4px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:none}
+nav.main a{white-space:nowrap;text-decoration:none;color:var(--muted);font-weight:500;padding:8px 12px;border-radius:8px}
+nav.main a:hover{color:var(--fg);background:var(--surface-2)}
+nav.main a.on{color:var(--fg);background:var(--accent-soft)}
+.top-right{display:flex;align-items:center;gap:8px}
+.bell{position:relative;display:inline-flex;width:38px;height:38px;align-items:center;justify-content:center;border-radius:8px;color:var(--fg);text-decoration:none}
+.bell:hover{background:var(--surface-2)}
+.bell .dot{position:absolute;top:4px;right:3px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.demo{background:var(--surface-2);border-bottom:1px solid var(--line);font-size:.875rem}
+.demo .wrap{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding-block:8px}
+.demo strong{font-weight:600}
+@media (max-width:760px){
+  .top .wrap{flex-wrap:wrap;gap:6px 12px;padding-block:8px}
+  nav.main{order:3;flex-basis:100%}
+}
+
+main{padding-block:28px 64px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.between{justify-content:space-between}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.split{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:24px;align-items:start}
+@media (max-width:900px){.split{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.panel.flat{box-shadow:none}
+.section-title{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.prose{max-width:65ch}
+.eyebrow{font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+hr.sep{border:0;border-top:1px solid var(--line);margin:4px 0}
+
+/* buttons & inputs */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:inherit;font-weight:600;font-size:.95rem;padding:10px 16px;border-radius:8px;border:1px solid transparent;cursor:pointer;text-decoration:none;line-height:1.2;background:var(--accent);color:var(--accent-fg)}
+.btn:hover{filter:brightness(1.06)}
+.btn.sec{background:var(--surface);color:var(--fg);border-color:var(--line)}
+.btn.sec:hover{background:var(--surface-2);filter:none}
+.btn.ghost{background:transparent;color:var(--accent);padding-inline:8px}
+.btn.danger{background:var(--danger);color:#fff}
+.btn.sm{padding:7px 12px;font-size:.875rem}
+.btn.block{width:100%}
+.btn[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:.9rem}
+.hint{font-size:.84rem;color:var(--muted);font-weight:400}
+input.in,select.in,textarea.in{font:inherit;font-size:.95rem;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+textarea.in{min-height:84px;resize:vertical}
+input.in:focus,select.in:focus,textarea.in:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:transparent}
+input.otp{font-family:var(--f-mono);font-size:1.6rem;letter-spacing:.5em;text-align:center;padding:12px}
+.field-err{color:var(--danger);font-size:.86rem;font-weight:500}
+.check{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent);flex:none}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.chip.ok{background:var(--ok-bg);color:var(--ok)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.danger{background:var(--danger-bg);color:var(--danger)}
+.chip.info{background:var(--info-bg);color:var(--info)}
+.chip.accent{background:var(--accent-soft);color:var(--accent)}
+.chip .d{width:7px;height:7px;border-radius:50%;background:currentColor}
+.live .d{animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.live .d{animation:none}}
+
+/* banner (blocking reasons, PRODUCT_CONTEXT 5.7) */
+.banner{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface)}
+.banner .ic{flex:none;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem}
+.banner.warn{background:var(--warn-bg);border-color:transparent}.banner.warn .ic{background:var(--warn);color:var(--surface)}
+.banner.danger{background:var(--danger-bg);border-color:transparent}.banner.danger .ic{background:var(--danger);color:var(--surface)}
+.banner.info{background:var(--info-bg);border-color:transparent}.banner.info .ic{background:var(--info);color:var(--surface)}
+.banner.ok{background:var(--ok-bg);border-color:transparent}.banner.ok .ic{background:var(--ok);color:var(--surface)}
+.banner .body{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+.banner .code{font-family:var(--f-mono);font-size:.75rem;color:var(--muted)}
+
+/* event cards */
+.ecard{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;text-decoration:none;color:inherit;transition:border-color .15s}
+.ecard:hover{border-color:var(--accent)}
+.cover{position:relative;aspect-ratio:16/8;max-width:100%;color:#fff;display:flex;align-items:flex-end;padding:14px 16px;overflow:hidden}
+.cover .date{font-weight:700;line-height:1;display:flex;flex-direction:column;gap:4px}
+.cover .date b{font-size:2.6rem;letter-spacing:-.03em}
+.cover .date span{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;opacity:.9}
+.cover .tag{position:absolute;top:12px;left:12px;display:flex;gap:6px;flex-wrap:wrap}
+.cover .tag .chip{background:rgba(255,255,255,.92);color:#14201B}
+.ecard .b{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+.ecard .price{margin-top:auto;padding-top:8px;font-weight:600}
+
+/* ticket stub */
+.stub{display:grid;grid-template-columns:minmax(0,1fr) 168px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);position:relative}
+.stub .main{padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.stub .tear{border-left:2px dashed var(--line);padding:16px;display:flex;flex-direction:column;gap:8px;justify-content:center;align-items:flex-start}
+.stub::before,.stub::after{content:"";position:absolute;right:160px;width:18px;height:18px;border-radius:50%;background:var(--bg);border:1px solid var(--line)}
+.stub::before{top:-10px;clip-path:inset(50% 0 0 0)}
+.stub::after{bottom:-10px;clip-path:inset(0 0 50% 0)}
+@media (max-width:620px){.stub{grid-template-columns:minmax(0,1fr)}.stub .tear{border-left:0;border-top:2px dashed var(--line);flex-direction:row;flex-wrap:wrap;align-items:center}.stub::before,.stub::after{display:none}}
+.statusbox{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:10px 12px;border-radius:8px;background:var(--surface-2)}
+details.chain summary{cursor:pointer;color:var(--muted);font-size:.86rem;font-weight:500;list-style:none;display:inline-flex;gap:6px;align-items:center}
+details.chain summary::before{content:"›";display:inline-block;transition:transform .15s;font-size:1.1rem}
+details.chain[open] summary::before{transform:rotate(90deg)}
+details.chain .kv{margin-top:8px}
+.kv{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:4px 14px;font-size:.875rem}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;overflow-wrap:anywhere}
+
+/* tiers */
+.tier{display:flex;gap:12px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:var(--r);cursor:pointer;background:var(--surface)}
+.tier:has(input:checked){border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tier.off{opacity:.55;cursor:not-allowed}
+.tier input{accent-color:var(--accent);width:18px;height:18px;flex:none}
+.tier .t{flex:1;min-width:0}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.stepper button{font:inherit;width:38px;height:38px;border:0;background:var(--surface);color:var(--fg);cursor:pointer;font-size:1.1rem}
+.stepper button:hover{background:var(--surface-2)}
+.stepper span{min-width:36px;text-align:center;font-weight:600}
+.bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+
+/* auction */
+.lead{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.lead > div{background:var(--surface);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.lead .big{font-family:var(--f-mono);font-size:1.6rem;font-weight:600;line-height:1.1}
+.lead .lbl{font-size:.8rem;color:var(--muted);font-weight:500}
+.hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.hist li{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.9rem}
+.hist li:last-child{border-bottom:0}
+.hist li.me{font-weight:600}
+.flash{animation:flash 1.2s ease-out}
+@keyframes flash{0%{background:var(--accent-soft)}100%{background:transparent}}
+
+/* tables */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table.t{border-collapse:collapse;width:100%;font-size:.9rem}
+table.t th,table.t td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t th{font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--surface-2)}
+table.t tr:last-child td{border-bottom:0}
+table.t td.r,table.t th.r{text-align:right}
+
+/* stat tiles */
+.stat{display:flex;flex-direction:column;gap:4px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.stat b{font-size:1.5rem;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:.85rem}
+
+/* tabs */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{font:inherit;font-weight:600;background:none;border:0;padding:10px 14px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button.on{color:var(--fg);border-bottom-color:var(--accent)}
+.tabs .cnt{margin-left:6px;font-size:.75rem;background:var(--surface-2);padding:1px 7px;border-radius:9px}
+
+/* steps */
+.steps{display:flex;gap:8px;flex-wrap:wrap;list-style:none;margin:0;padding:0}
+.steps li{display:flex;align-items:center;gap:8px;font-size:.86rem;color:var(--muted);font-weight:500}
+.steps li .n{width:24px;height:24px;border-radius:50%;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;background:var(--surface)}
+.steps li.on{color:var(--fg)}.steps li.on .n{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.steps li.done .n{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.steps li+li::before{content:"";width:18px;height:1px;background:var(--line)}
+
+/* level ladder */
+.ladder{display:grid;gap:8px}
+.ladder .lv{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:8px}
+.ladder .lv b{font-family:var(--f-mono)}
+.ladder .lv.reached{background:var(--accent-soft);border-color:transparent}
+
+/* empty */
+.empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:36px 20px;border:1px dashed var(--line);border-radius:var(--r);background:var(--surface)}
+.empty p{max-width:46ch}
+
+/* modal & toast */
+.backdrop{position:fixed;inset:0;background:rgba(8,14,12,.55);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);color:var(--fg);border-radius:14px;max-width:460px;width:100%;max-height:calc(100% - 32px);overflow:auto;padding:22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal.wide{max-width:560px}
+.qrbox{align-self:center;background:#fff;padding:14px;border-radius:12px;line-height:0}
+.qrbox img,.qrbox canvas{display:block;width:220px;height:220px}
+.countbar{height:4px;border-radius:2px;background:var(--surface-2);overflow:hidden}
+.countbar i{display:block;height:100%;background:var(--accent);transition:width 1s linear}
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:60;display:flex;flex-direction:column;gap:8px;width:min(440px,calc(100% - 32px))}
+.toast{background:var(--fg);color:var(--bg);padding:12px 16px;border-radius:10px;font-weight:500;box-shadow:0 6px 20px rgba(0,0,0,.2)}
+
+/* scanner */
+.scan-result{border-radius:14px;padding:24px;display:flex;gap:16px;align-items:center}
+.scan-result .mk{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:700;flex:none}
+.scan-result.ok{background:var(--ok-bg)}.scan-result.ok .mk{background:var(--ok);color:var(--surface)}
+.scan-result.bad{background:var(--danger-bg)}.scan-result.bad .mk{background:var(--danger);color:var(--surface)}
+.scan-result h2{font-size:1.4rem}
+.viewfinder{aspect-ratio:4/3;max-width:100%;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;position:relative}
+.viewfinder::before{content:"";position:absolute;inset:18%;border:3px solid var(--accent);border-radius:14px;opacity:.6}
+.hero{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;align-items:end;padding-bottom:8px}
+@media (max-width:760px){.hero{grid-template-columns:minmax(0,1fr)}}
+.trust{display:flex;flex-direction:column;gap:8px;font-size:.9rem}
+.trust div{display:flex;gap:10px;align-items:flex-start}
+.trust div::before{content:"✓";color:var(--accent);font-weight:700}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#events"><span class="brand-mark" aria-hidden="true"></span>NFT Ticket</a>
+    <nav class="main" id="nav" aria-label="Điều hướng chính"></nav>
+    <div class="top-right" id="topRight"></div>
+  </div>
+</header>
+<div class="demo"><div class="wrap" id="demoBar"></div></div>
+<main><div class="wrap" id="app"></div></main>
+<div id="modalRoot"></div>
+<div id="toasts" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   NFT Ticket — prototype bấm được, dữ liệu giả lập.
+   Bám PRODUCT_CONTEXT.md, mã lỗi 5.7, trạng thái packages/shared/src/types.ts.
+   Không có backend: mọi thứ chạy trong trình duyệt.
+   ============================================================ */
+const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+const DEMO_CODE = "123456";
+const KEY = "nftticket-proto-v1";
+const CHAIN_ID = 43113;
+const CONTRACT = "0x5F1c9aE2b7D04c33A1e8f6C2d90B7a41E3c8D2f6";
+const SILENCE = 5 * MIN;
+const HOLD_MS = 10 * MIN;
+const PAY_WINDOW = 15 * MIN;
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const vnd = n => Math.round(n).toLocaleString("vi-VN") + " đ";
+const h32 = s => { let h = 2166136261; for (const c of String(s)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(16).padStart(8, "0"); };
+const addrOf = seed => "0x" + [0,1,2,3,4].map(i => h32(seed + ":" + i)).join("").slice(0, 40);
+const short = a => a ? a.slice(0, 6) + "…" + a.slice(-4) : "";
+const txOf = seed => "0x" + [0,1,2,3,4,5,6,7].map(i => h32(seed + "#" + i)).join("");
+const rid = p => p + Math.random().toString(36).slice(2, 8);
+const two = n => String(n).padStart(2, "0");
+const fmtDate = t => new Date(t).toLocaleDateString("vi-VN", {weekday:"short", day:"2-digit", month:"2-digit", year:"numeric"});
+const fmtDay = t => new Date(t).toLocaleDateString("vi-VN", {day:"2-digit", month:"2-digit"});
+const fmtTime = t => new Date(t).toLocaleTimeString("vi-VN", {hour:"2-digit", minute:"2-digit"});
+const fmtDT = t => fmtTime(t) + ", " + fmtDate(t);
+const dur = ms => {
+  if (ms <= 0) return "0:00";
+  const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60), ss = s % 60;
+  if (d) return `${d} ngày ${h} giờ`;
+  if (h) return `${h}:${two(m)}:${two(ss)}`;
+  return `${m}:${two(ss)}`;
+};
+const ago = t => { const m = Math.round((Date.now() - t) / MIN); if (m < 1) return "vừa xong"; if (m < 60) return m + " phút trước"; const h = Math.round(m / 60); if (h < 24) return h + " giờ trước"; return Math.round(h / 24) + " ngày trước"; };
+const maskEmail = e => { const [a, b] = String(e).split("@"); return (a ? a[0] : "") + "***@" + (b || ""); };
+const maskPhone = p => p ? p.slice(0, 2) + "****" + p.slice(-3) : "";
+
+/* ---------------- seed data ---------------- */
+function at(days, hour, minute = 0) { const d = new Date(Date.now() + days * DAY); d.setHours(hour, minute, 0, 0); return d.getTime(); }
+function seed() {
+  const now = Date.now();
+  const user = (id, name, email, extra = {}) => ({ id, name, email, phone: null, phoneVerified: false,
+    wallet: { type: "custodial", address: addrOf(id) }, kyc: { status: "not_started", attempts: [] }, roles: [], totp: false, ...extra });
+  const verified = (cccd, legal, dob) => ({ status: "verified", attempts: [], cccd, legalName: legal, dob, verifiedAt: now - 30 * DAY });
+  const e1Start = at(18, 20), e2Start = at(25, 18), e3Start = at(9, 8), e5Start = at(12, 18), e6Start = at(5, 19), e7Start = at(60, 20), e4Start = at(40, 20);
+  const users = {
+    u_an: user("u_an", "Nguyễn Minh An", "an.nguyen@example.com", { phone: "0912345123", phoneVerified: true }),
+    u_binh: user("u_binh", "Trần Thanh Bình", "binh.tran@example.com", { phone: "0987654321", phoneVerified: true, kyc: verified("079098001230", "TRẦN THANH BÌNH", "02/09/1996") }),
+    u_chi: user("u_chi", "Lê Bảo Chi", "chi@saigonlive.example", { phone: "0903111222", phoneVerified: true, totp: true, kyc: verified("079195004561", "LÊ BẢO CHI", "21/05/1990"),
+      roles: [{ role: "org_owner", scope: "org", id: "o1" }] }),
+    u_dung: user("u_dung", "Phạm Quốc Dũng", "dung.pham@example.com", { phone: "0934222333", phoneVerified: true, totp: true,
+      roles: [{ role: "gate_staff", scope: "event", id: "e1", expiresAt: e1Start + 4 * HOUR + DAY }] }),
+    u_ha: user("u_ha", "Ngô Thu Hà", "ha.ngo@example.com", { phone: "0977333444", phoneVerified: true, totp: true, roles: [{ role: "kyc_reviewer", scope: "platform" }] }),
+    u_admin: user("u_admin", "Đặng Quang Huy", "huy.dang@example.com", { phone: "0966444555", phoneVerified: true, totp: true, roles: [{ role: "platform_admin", scope: "platform" }] }),
+    u_khoa: user("u_khoa", "Võ Đăng Khoa", "khoa.vo@example.com", { phone: "0911888999", phoneVerified: true,
+      kyc: { status: "pending", manual: true, attempts: [now - 5 * HOUR], cccd: "001099007782", legalName: "VÕ ĐĂNG KHOA", dob: "11/11/1999", score: 0.71, submittedAt: now - 5 * HOUR } }),
+  };
+  ["u_b1", "u_b2", "u_b3"].forEach((id, i) => users[id] = user(id, "Khách " + (i + 1), id + "@example.com", { bot: true, phoneVerified: true, phone: "09000000" + i, kyc: verified("00109900000" + i, "", "") }));
+  const tier = (id, name, price, qty, sold, limit) => ({ id, name, price, qty, sold, held: 0, limit });
+  const ev = (id, o) => ({ id, orgId: "o1", status: "published", kycRequired: false, cancelReq: null, ...o });
+  const events = {
+    e1: ev("e1", { name: "Đêm nhạc Sông Hồng 2026", venue: "Cung Văn hóa Hữu nghị Việt Xô", city: "Hà Nội", hue: 168, startAt: e1Start, endAt: e1Start + 4 * HOUR,
+      saleStart: now - 10 * DAY, saleEnd: e1Start - 2 * HOUR,
+      desc: "Đêm nhạc ngoài trời với ba ban nhạc indie và dàn dây giao hưởng. Mở cửa lúc 18:30. Mỗi vé vào cổng một lần, mã QR đổi mỗi 30 giây nên ảnh chụp màn hình không dùng được.",
+      tiers: [tier("e1-std", "Vé thường", 500000, 400, 312, 4), tier("e1-vip", "VIP · khu ghế ngồi", 1200000, 80, 74, 2)] }),
+    e2: ev("e2", { name: "Chung kết Esports Mùa Thu", venue: "Nhà thi đấu Phú Thọ", city: "TP. Hồ Chí Minh", hue: 222, startAt: e2Start, endAt: e2Start + 5 * HOUR, kycRequired: true,
+      saleStart: now - 5 * DAY, saleEnd: e2Start - 2 * HOUR,
+      desc: "Trận chung kết giải đấu mùa thu. Ban tổ chức yêu cầu xác minh danh tính (eKYC) để chống đầu cơ vé, nên chỉ tài khoản đã xác minh mới mua và đấu giá được.",
+      tiers: [tier("e2-std", "Khán đài", 800000, 1000, 640, 2), tier("e2-front", "Sát sân khấu", 1500000, 120, 120, 2)] }),
+    e3: ev("e3", { name: "Hội thảo Web3 Việt Nam", venue: "Trung tâm Hội nghị Ariyana", city: "Đà Nẵng", hue: 34, startAt: e3Start, endAt: e3Start + 9 * HOUR,
+      saleStart: now - 30 * DAY, saleEnd: now - 2 * HOUR,
+      desc: "Một ngày hội thảo về hạ tầng blockchain, thanh toán và pháp lý tài sản số. Đã đóng bán vé trực tuyến.",
+      tiers: [tier("e3-std", "Vé hội thảo", 300000, 500, 455, 2)] }),
+    e4: ev("e4", { name: "Đêm Jazz Bến Thành", venue: "Nhà hát Thành phố", city: "TP. Hồ Chí Minh", hue: 280, status: "draft", startAt: e4Start, endAt: e4Start + 3 * HOUR,
+      saleStart: now + 2 * DAY, saleEnd: e4Start - 2 * HOUR, desc: "Bản nháp, chưa xuất bản.", tiers: [tier("e4-std", "Vé thường", 650000, 300, 0, 4)] }),
+    e5: ev("e5", { name: "Lễ hội Ánh Sáng Hội An", venue: "Bãi bồi Cẩm Nam", city: "Quảng Nam", hue: 12, status: "cancel_requested", startAt: e5Start, endAt: e5Start + 5 * HOUR,
+      saleStart: now - 20 * DAY, saleEnd: e5Start - 2 * HOUR, desc: "Lễ hội đèn lồng ven sông Hoài.",
+      cancelReq: { status: "requested", reason: "Dự báo bão đổ bộ đúng ngày diễn ra, chính quyền địa phương khuyến cáo không tổ chức sự kiện đông người ngoài trời.", evidence: "Công văn số 412/UBND-VX (bản chụp)", by: "u_chi", at: now - 3 * HOUR },
+      tiers: [tier("e5-std", "Vé vào cổng", 250000, 600, 210, 6)] }),
+    e6: ev("e6", { name: "Giải chạy Đêm Hồ Tây", venue: "Công viên nước Hồ Tây", city: "Hà Nội", hue: 196, status: "cancelled", startAt: e6Start, endAt: e6Start + 3 * HOUR,
+      saleStart: now - 40 * DAY, saleEnd: e6Start - DAY, desc: "Sự kiện đã bị hủy.",
+      cancelReq: { status: "approved", reason: "Không được cấp phép phân luồng giao thông.", evidence: "Thông báo của Sở GTVT", by: "u_chi", at: now - 2 * DAY, decidedBy: "u_admin", decidedAt: now - 1.8 * DAY },
+      tiers: [tier("e6-10k", "Cự ly 10 km", 350000, 800, 520, 2)] }),
+    e7: ev("e7", { name: "Đêm nhạc Ký Ức", venue: "Sân vận động Quân khu 7", city: "TP. Hồ Chí Minh", hue: 330, startAt: e7Start, endAt: e7Start + 4 * HOUR,
+      saleStart: at(3, 10), saleEnd: e7Start - 2 * HOUR, desc: "Mở bán sau 3 ngày nữa.",
+      tiers: [tier("e7-std", "Vé thường", 900000, 2000, 0, 4)] }),
+  };
+  const tk = (id, ownerId, eventId, tierId, tokenId, paid, status = "active", extra = {}) => ({ id, ownerId, eventId, tierId, tokenId, status, transfers: 0,
+    txHash: txOf(id), mintedAt: now - 3 * DAY, payments: [{ payer: ownerId, amount: paid, kind: "primary", at: now - 3 * DAY }], ...extra });
+  const tickets = {
+    t1: tk("t1", "u_an", "e1", "e1-std", 1024, 500000),
+    t2: tk("t2", "u_binh", "e1", "e1-vip", 1188, 1200000, "listed"),
+    t3: tk("t3", "u_b1", "e2", "e2-std", 2051, 800000, "listed"),
+    t4: tk("t4", "u_an", "e6", "e6-10k", 3307, 350000, "void_pending_refund"),
+    t5: tk("t5", "u_binh", "e5", "e5-std", 4410, 250000),
+    t6: tk("t6", "u_binh", "e1", "e1-std", 1102, 500000),
+    t8: tk("t8", "u_b3", "e1", "e1-std", 1066, 650000, "active", { transfers: 1, payments: [{ payer: "u_binh", amount: 500000, kind: "primary", at: now - 9 * DAY }, { payer: "u_b3", amount: 650000, kind: "resale", at: now - 2 * DAY }] }),
+    t9: tk("t9", "u_b2", "e6", "e6-10k", 3311, 350000, "void_pending_refund"),
+    t10: tk("t10", "u_b3", "e6", "e6-10k", 3290, 350000, "void_pending_refund"),
+  };
+  const auctions = {
+    a1: { id: "a1", ticketId: "t2", sellerId: "u_binh", eventId: "e1", base: 1200000, capBps: 15000, cap: 1800000, openPrice: 1200000, step: 60000, silenceMs: SILENCE,
+      startAt: now - 20 * MIN, endAt: now + 40 * MIN, status: "open",
+      bids: [{ userId: "u_b1", amount: 1200000, at: now - 15 * MIN }, { userId: "u_b2", amount: 1260000, at: now - 9 * MIN }, { userId: "u_b1", amount: 1320000, at: now - 40 * 1000 }],
+      sim: { max: 1560000 } },
+    a2: { id: "a2", ticketId: "t3", sellerId: "u_b1", eventId: "e2", base: 800000, capBps: 15000, cap: 1200000, openPrice: 800000, step: 40000, silenceMs: SILENCE,
+      startAt: now - HOUR, endAt: now + 5 * HOUR, status: "open", bids: [], sim: { max: 1000000, afterHuman: true } },
+    a0: { id: "a0", ticketId: "t8", sellerId: "u_binh", eventId: "e1", base: 500000, capBps: 15000, cap: 750000, openPrice: 500000, step: 25000, silenceMs: SILENCE,
+      startAt: now - 3 * DAY, endAt: now - 2 * DAY, status: "settled", closeReason: "deadline_reached", closedAt: now - 2 * DAY, winnerId: "u_b3", price: 650000,
+      bids: [{ userId: "u_b2", amount: 500000, at: now - 2.6 * DAY }, { userId: "u_b3", amount: 650000, at: now - 2.1 * DAY }] },
+  };
+  return {
+    v: 1, seededAt: now, me: "u_an", lastMfa: {}, users, events, tickets, auctions,
+    orgs: {
+      o1: { id: "o1", name: "Saigon Live Entertainment", taxId: "0314••••92", status: "approved", rep: "u_chi", bank: "Vietcombank •••• 4821", submittedAt: now - 60 * DAY },
+      o2: { id: "o2", name: "Hanoi Indie Collective", taxId: "0109••••37", status: "pending", repName: "Đỗ Hoàng Long", repKyc: "verified", bank: "Techcombank •••• 6789", license: "GCN ĐKDN số 0109••••37", submittedAt: now - 26 * HOUR },
+      o3: { id: "o3", name: "Mekong Run Club", taxId: "1801••••15", status: "pending", repName: "Huỳnh Ngọc Mai", repKyc: "pending", bank: "ACB •••• 1203", license: "GCN ĐKDN số 1801••••15", submittedAt: now - 4 * HOUR },
+    },
+    orders: [
+      { id: "ord_7Q2K", userId: "u_an", eventId: "e1", tierId: "e1-std", qty: 1, amount: 500000, status: "issued", at: now - 3 * DAY },
+      { id: "ord_3M8D", userId: "u_an", eventId: "e6", tierId: "e6-10k", qty: 1, amount: 350000, status: "issued", at: now - 30 * DAY },
+    ],
+    refunds: [
+      { id: "rf_01", userId: "u_an", ticketId: "t4", eventId: "e6", amount: 350000, reason: "event_cancelled", kind: "primary", status: "processing", attempts: 1, createdAt: now - 1.8 * DAY, eta: now + 4 * DAY, manual: true, channel: "Thẻ ATM nội địa •••• 5521" },
+      { id: "rf_02", userId: "u_b2", ticketId: "t9", eventId: "e6", amount: 350000, reason: "event_cancelled", kind: "primary", status: "failed", attempts: 5, createdAt: now - 1.8 * DAY, eta: null, lastError: "Ngân hàng phát hành từ chối giao dịch (mã 05)", channel: "Thẻ quốc tế •••• 0119" },
+      { id: "rf_03", userId: "u_b3", ticketId: "t10", eventId: "e6", amount: 350000, reason: "event_cancelled", kind: "primary", status: "succeeded", attempts: 1, createdAt: now - 1.8 * DAY, doneAt: now - 1.2 * DAY, channel: "Ví điện tử" },
+    ],
+    payouts: [{ id: "po_01", userId: "u_binh", ticketId: "t8", auctionId: "a0", eventId: "e1", amount: 650000, status: "hold", releaseAt: e1Start + 4 * HOUR + DAY }],
+    checkins: [],
+    audit: [
+      { at: now - 1.8 * DAY, actor: "u_admin", role: "platform_admin", action: "event.cancel_approve", target: "Giải chạy Đêm Hồ Tây", reason: "Đủ bằng chứng từ Sở GTVT" },
+      { at: now - 2 * DAY, actor: "u_chi", role: "org_owner", action: "event.cancel_request", target: "Giải chạy Đêm Hồ Tây", reason: "Không được cấp phép phân luồng giao thông." },
+      { at: now - 10 * DAY, actor: "u_chi", role: "org_owner", action: "event.publish", target: "Đêm nhạc Sông Hồng 2026", reason: "Mở bán đợt 1" },
+    ],
+    notifs: [
+      { id: "n1", userId: "u_an", text: "Sự kiện “Giải chạy Đêm Hồ Tây” đã bị hủy. Bạn được hoàn 350.000 đ về Thẻ ATM nội địa •••• 5521, dự kiến trong 5–7 ngày làm việc.", at: now - 1.8 * DAY, read: false, href: "tickets" },
+      { id: "n2", userId: "u_binh", text: "Vé VIP “Đêm nhạc Sông Hồng 2026” của bạn đang được trả giá 1.320.000 đ.", at: now - 40 * 1000, read: false, href: "auction-a1" },
+      { id: "n3", userId: "u_binh", text: "Bạn đã bán vé #1066 với giá 650.000 đ. Tiền chờ giải ngân sau khi sự kiện kết thúc 1 ngày.", at: now - 2 * DAY, read: true, href: "tickets" },
+    ],
+    phoneTaken: {},
+  };
+}
+let S;
+function load() { try { const raw = localStorage.getItem(KEY); if (!raw) return null; const s = JSON.parse(raw); if (!s || s.v !== 1 || Date.now() - s.seededAt > 12 * HOUR) return null; return s; } catch (e) { return null; } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+S = load() || seed();
+
+/* ---------------- UI state (không lưu) ---------------- */
+const UI = { q: "", city: "", sort: "soon", ticketFilter: "all", adminTab: "cancel", orgEvent: null, modal: null, blocks: {}, login: null, kyc: null, checkout: null, wiz: null, scan: null, scanLog: [], aucFilter: "", aucTab: "open", flash: {} };
+
+/* ---------------- domain helpers ---------------- */
+const me = () => S.me ? S.users[S.me] : null;
+const evOf = id => S.events[id];
+const tierOf = (ev, tid) => ev.tiers.find(t => t.id === tid);
+const roleIn = (u, role, id) => u && u.roles.some(r => r.role === role && (id == null || r.id === id) && (!r.expiresAt || r.expiresAt > Date.now()));
+const isStaff = u => u && u.roles.length > 0;
+const kycCode = u => ({ not_started: "KYC_REQUIRED", pending: "KYC_PENDING", rejected: "KYC_REJECTED", revoked: "KYC_REVOKED" })[u.kyc.status] || null;
+function levelOf(u) { if (!u) return 0; let l = 1; if (u.phoneVerified && u.wallet) l = 2; if (l === 2 && u.kyc.status === "verified") l = 3; return l; }
+function orgConflict(u, ev) {
+  if (!u) return false;
+  return u.roles.some(r => (r.scope === "org" && r.id === ev.orgId) || (r.role === "gate_staff" && evOf(r.id) && evOf(r.id).orgId === ev.orgId));
+}
+function inWindow(ev) { const n = Date.now(); return n >= ev.saleStart && n < ev.saleEnd; }
+function avail(t) { return t.qty - t.sold - t.held; }
+function ownedCount(uid, tierId) { return Object.values(S.tickets).filter(t => t.ownerId === uid && t.tierId === tierId).length; }
+function levelBlock(u, needL3) {
+  if (!u.phoneVerified) return "PHONE_NOT_VERIFIED";
+  if (!u.wallet) return "WALLET_NOT_LINKED";
+  if (needL3 && u.kyc.status !== "verified") return kycCode(u);
+  return null;
+}
+/* Thứ tự kiểm tra theo 2.3: phiên → quyền → sở hữu → trạng thái nghiệp vụ → cấp xác minh */
+function checkBuy(ev, tier, qty) {
+  const u = me();
+  if (!u) return { code: "AUTH_REQUIRED" };
+  if (ev.status !== "published") return { code: "EVENT_NOT_ACTIVE" };
+  if (!inWindow(ev)) return { code: "SALE_WINDOW_CLOSED", detail: Date.now() < ev.saleStart ? "Mở bán từ " + fmtDT(ev.saleStart) + "." : "Đã đóng bán lúc " + fmtDT(ev.saleEnd) + "." };
+  const lv = levelBlock(u, ev.kycRequired); if (lv) return { code: lv, detail: ev.kycRequired && lv.startsWith("KYC") ? "Ban tổ chức yêu cầu xác minh danh tính cho sự kiện này." : "" };
+  if (ownedCount(u.id, tier.id) + qty > tier.limit) return { code: "PURCHASE_LIMIT_REACHED", detail: `Mỗi tài khoản mua tối đa ${tier.limit} vé “${tier.name}”. Bạn đang có ${ownedCount(u.id, tier.id)} vé.` };
+  return null;
+}
+function checkAuctionCreate(t) {
+  const u = me(), ev = evOf(t.eventId);
+  if (!u) return { code: "AUTH_REQUIRED" };
+  if (orgConflict(u, ev)) return { code: "ORGANIZER_CONFLICT" };
+  if (t.ownerId !== u.id) return { code: "ROLE_FORBIDDEN" };
+  if (!["published"].includes(ev.status)) return { code: "EVENT_NOT_ACTIVE", detail: ev.status === "cancel_requested" ? "Sự kiện đang chờ duyệt hủy nên tạm dừng mở phiên mới." : "" };
+  if (t.status !== "active") return { code: "EVENT_NOT_ACTIVE", detail: "Vé không ở trạng thái dùng được." };
+  const lv = levelBlock(u, true); if (lv) return { code: lv, detail: lv.startsWith("KYC") ? "Bán lại qua đấu giá cần tài khoản đã xác minh danh tính." : "" };
+  return null;
+}
+function checkBid(a) {
+  const u = me(), ev = evOf(a.eventId);
+  if (!u) return { code: "AUTH_REQUIRED" };
+  if (orgConflict(u, ev)) return { code: "ORGANIZER_CONFLICT" };
+  if (a.sellerId === u.id) return { code: "ROLE_FORBIDDEN", detail: "Đây là phiên của bạn, nên bạn không trả giá được." };
+  if (ev.status !== "published" || a.status !== "open") return { code: "EVENT_NOT_ACTIVE", detail: a.status !== "open" ? "Phiên đã kết thúc." : "" };
+  const lv = levelBlock(u, true); if (lv) return { code: lv, detail: lv.startsWith("KYC") ? "Trả giá và nhận vé từ đấu giá cần tài khoản đã xác minh danh tính." : "" };
+  return null;
+}
+
+/* Bảng hướng dẫn theo mã lỗi (PRODUCT_CONTEXT 5.7) */
+const ERR = {
+  AUTH_REQUIRED: { tone: "info", title: "Đăng nhập để tiếp tục", msg: "Bạn chỉ cần email, không cần mật khẩu.", act: ["Đăng nhập", "#login"] },
+  MFA_REQUIRED: { tone: "info", title: "Nhập mã xác thực 2 lớp", msg: "Thao tác này cần mã từ ứng dụng xác thực.", act: ["Nhập mã", "mfa"] },
+  ACCOUNT_LOCKED: { tone: "danger", title: "Tài khoản đang bị khóa", msg: "Liên hệ hỗ trợ qua support@nftticket.example. Tiền hoàn (nếu có) vẫn được chuyển bình thường." },
+  PHONE_NOT_VERIFIED: { tone: "warn", title: "Xác thực số điện thoại trước giao dịch đầu tiên", msg: "Mất khoảng 1 phút: nhập số, nhận mã SMS, nhập mã.", act: ["Xác thực SĐT", "#account"] },
+  WALLET_NOT_LINKED: { tone: "warn", title: "Tài khoản chưa có ví nhận vé", msg: "Tạo ví tự động hoặc liên kết ví của bạn.", act: ["Mở phần Ví", "#account"] },
+  KYC_REQUIRED: { tone: "warn", title: "Cần xác minh danh tính (eKYC)", msg: "Chụp CCCD gắn chip và một ảnh selfie. Thường có kết quả trong vài phút.", act: ["Xác minh danh tính", "#kyc"] },
+  KYC_PENDING: { tone: "info", title: "Hồ sơ xác minh đang được xử lý", msg: "Bạn sẽ nhận thông báo khi có kết quả, chậm nhất 24 giờ. Không cần nộp lại.", act: ["Xem trạng thái", "#kyc"] },
+  KYC_REJECTED: { tone: "danger", title: "Xác minh danh tính chưa đạt", msg: "Xem lý do và thử lại.", act: ["Xem lý do và thử lại", "#kyc"] },
+  KYC_REVOKED: { tone: "danger", title: "Xác minh danh tính đã bị thu hồi", msg: "Liên hệ hỗ trợ qua support@nftticket.example để được xem xét." },
+  ROLE_FORBIDDEN: { tone: "danger", title: "Bạn không có quyền thực hiện thao tác này", msg: "" },
+  ORGANIZER_CONFLICT: { tone: "danger", title: "Nhân sự ban tổ chức không giao dịch vé của tổ chức mình", msg: "Bạn có vai trò ở ban tổ chức của sự kiện này, nên không được mở phiên hay trả giá. Bạn vẫn mua vé sơ cấp được như khách." },
+  PURCHASE_LIMIT_REACHED: { tone: "warn", title: "Đã đạt hạn mức vé cho tài khoản", msg: "" },
+  SALE_WINDOW_CLOSED: { tone: "warn", title: "Không trong thời gian mở bán", msg: "" },
+  EVENT_NOT_ACTIVE: { tone: "warn", title: "Sự kiện không mở giao dịch", msg: "" },
+};
+function banner(b) {
+  if (!b) return "";
+  const e = ERR[b.code] || { tone: "danger", title: b.code, msg: "" };
+  const icon = { info: "i", warn: "!", danger: "!", ok: "✓" }[e.tone];
+  let action = "";
+  if (e.act) action = e.act[1] === "mfa" ? `<div><button class="btn sm" data-act="open-mfa">${e.act[0]}</button></div>` : `<div><a class="btn sm" href="${e.act[1]}">${e.act[0]}</a></div>`;
+  return `<div class="banner ${e.tone}" role="alert"><span class="ic" aria-hidden="true">${icon}</span><div class="body"><strong>${esc(e.title)}</strong>${b.detail || e.msg ? `<p class="small">${esc(b.detail || e.msg)}</p>` : ""}${action}<span class="code">Mã: ${b.code}</span></div></div>`;
+}
+const info = (tone, title, text, extra = "") => `<div class="banner ${tone}"><span class="ic" aria-hidden="true">${tone === "ok" ? "✓" : tone === "info" ? "i" : "!"}</span><div class="body"><strong>${title}</strong>${text ? `<p class="small">${text}</p>` : ""}${extra}</div></div>`;
+
+const TSTAT = { active: ["Dùng được", "ok"], listed: ["Đang rao bán", "info"], settling: ["Đang quyết toán", "warn"], used: ["Đã check-in", ""], void_pending_refund: ["Vô hiệu · đang hoàn tiền", "danger"], void: ["Đã vô hiệu", "danger"] };
+const ESTAT = { draft: ["Nháp", ""], published: ["Đang mở bán", "ok"], cancel_requested: ["Tạm dừng · chờ duyệt hủy", "warn"], cancelled: ["Đã hủy", "danger"], completed: ["Đã kết thúc", ""] };
+const RSTAT = { pending: ["Chờ xử lý", ""], processing: ["Đang hoàn tiền", "info"], succeeded: ["Đã hoàn", "ok"], failed: ["Lỗi · chờ đối soát", "danger"] };
+const ASTAT = { open: ["Đang diễn ra", "ok"], closed: ["Kết thúc · không có giá", ""], settling: ["Chờ người thắng thanh toán", "warn"], settled: ["Đã chuyển vé", "accent"], settlement_failed: ["Quyết toán lỗi", "danger"], cancelled: ["Đã hủy", "danger"] };
+const CLOSE = { cap_reached: "Có giá chạm trần", deadline_reached: "Hết thời hạn người bán đặt", silence_timeout: "Hết khoảng im lặng 5 phút", seller_cancelled: "Người bán hủy khi chưa có giá", operator_cancelled: "Vận hành hủy", event_cancelled: "Sự kiện bị hủy" };
+const KYCR = { DOC_UNREADABLE: "Ảnh CCCD bị mờ hoặc lóa. Chụp lại ở nơi đủ sáng, không che góc.", DOC_EXPIRED: "CCCD đã hết hạn. Dùng CCCD còn hiệu lực.", DOC_NOT_SUPPORTED: "Chỉ nhận CCCD gắn chip.", FACE_MISMATCH: "Khuôn mặt trong ảnh selfie không khớp ảnh trên CCCD. Chụp lại selfie, nhìn thẳng, bỏ kính.", LIVENESS_FAILED: "Chưa xác nhận được người thật. Làm theo hướng dẫn quay đầu.", DUPLICATE_IDENTITY: "CCCD này đã được dùng để xác minh một tài khoản khác. Liên hệ hỗ trợ nếu đây là nhầm lẫn.", UNDERAGE: "Cần đủ 18 tuổi để giao dịch.", PROVIDER_ERROR: "Hệ thống xác minh đang gặp sự cố. Lần này không tính vào số lần thử." };
+const chip = ([label, tone], live) => `<span class="chip ${tone}${live ? " live" : ""}"><span class="d"></span>${esc(label)}</span>`;
+
+function notify(userId, text, href) { S.notifs.unshift({ id: rid("n"), userId, text, at: Date.now(), read: false, href }); }
+function audit(action, target, reason) { const u = me(); S.audit.unshift({ at: Date.now(), actor: u.id, role: (u.roles[0] || { role: "user" }).role, action, target, reason }); }
+function toast(t) { const el = document.createElement("div"); el.className = "toast"; el.textContent = t; document.getElementById("toasts").appendChild(el); setTimeout(() => el.remove(), 3600); }
+const alias = (a, uid) => uid === S.me ? "Bạn" : "Người trả giá #" + h32(a.id + uid).slice(0, 3).toUpperCase();
+
+/* ---------------- auction engine ---------------- */
+const deadline = a => a.bids.length ? Math.min(a.endAt, a.bids[a.bids.length - 1].at + a.silenceMs) : a.endAt;
+const lead = a => a.bids[a.bids.length - 1];
+const minNext = a => a.bids.length ? Math.min(lead(a).amount + a.step, a.cap) : a.openPrice;
+function placeBid(a, uid, amount) {
+  a.bids.push({ userId: uid, amount, at: Date.now() });
+  UI.flash[a.id] = Date.now();
+  const prev = a.bids[a.bids.length - 2];
+  if (prev && prev.userId !== uid && !S.users[prev.userId].bot) notify(prev.userId, `Bạn vừa bị vượt giá ở phiên “${evOf(a.eventId).name}”. Giá mới ${vnd(amount)}.`, "auction-" + a.id);
+  if (!S.users[a.sellerId].bot) notify(a.sellerId, `Phiên của bạn có giá mới ${vnd(amount)}.`, "auction-" + a.id);
+  if (amount >= a.cap) closeAuction(a, "cap_reached");
+}
+function closeAuction(a, reason) {
+  const t = S.tickets[a.ticketId], ev = evOf(a.eventId);
+  a.closeReason = reason; a.closedAt = Date.now();
+  if (reason === "event_cancelled" || reason === "seller_cancelled" || reason === "operator_cancelled") { a.status = "cancelled"; if (reason !== "event_cancelled") t.status = "active"; return; }
+  if (!a.bids.length) { a.status = "closed"; t.status = "active"; notify(a.sellerId, `Phiên bán vé #${t.tokenId} kết thúc mà không có giá. Vé đã trở lại dùng được.`, "tickets"); return; }
+  const l = lead(a); a.winnerId = l.userId; a.price = l.amount; a.status = "settling"; t.status = "settling";
+  a.settle = { status: "awaiting_payment", payBy: Date.now() + PAY_WINDOW };
+  if (S.users[l.userId].bot) a.settle.autoPayAt = Date.now() + 4000;
+  notify(l.userId, `Bạn thắng phiên “${ev.name}” với giá ${vnd(l.amount)}. Thanh toán trước ${fmtTime(a.settle.payBy)} để nhận vé.`, "auction-" + a.id);
+  notify(a.sellerId, `Phiên bán vé #${t.tokenId} đã chốt ${vnd(l.amount)} (${CLOSE[reason].toLowerCase()}). Đang chờ người thắng thanh toán.`, "tickets");
+}
+function settleAuction(a) {
+  const t = S.tickets[a.ticketId], ev = evOf(a.eventId);
+  t.payments.push({ payer: a.winnerId, amount: a.price, kind: "resale", at: Date.now() });
+  t.ownerId = a.winnerId; t.status = "active"; t.transfers++; t.txHash = txOf(t.id + Date.now());
+  a.status = "settled"; a.settle.status = "settled";
+  S.payouts.push({ id: rid("po_"), userId: a.sellerId, ticketId: t.id, auctionId: a.id, eventId: ev.id, amount: a.price, status: "hold", releaseAt: ev.endAt + DAY });
+  notify(a.winnerId, `Vé #${t.tokenId} “${ev.name}” đã chuyển vào tài khoản của bạn.`, "tickets");
+  notify(a.sellerId, `Đã bán vé #${t.tokenId} giá ${vnd(a.price)}. Tiền chờ giải ngân đến ${fmtDate(ev.endAt + DAY)}.`, "tickets");
+}
+function tick() {
+  const now = Date.now(); let changed = false;
+  for (const a of Object.values(S.auctions)) {
+    if (a.status === "open") {
+      if (now >= deadline(a)) { const silence = a.bids.length && lead(a).at + a.silenceMs < a.endAt; closeAuction(a, silence ? "silence_timeout" : "deadline_reached"); changed = true; continue; }
+      if (a.sim && evOf(a.eventId).status === "published") {
+        const l = lead(a), hasHuman = a.bids.some(b => !S.users[b.userId].bot);
+        const idle = l ? now - l.at : now - a.startAt;
+        if ((!a.sim.afterHuman || hasHuman) && idle > 20000 && Math.random() < 0.06) {
+          const bot = ["u_b1", "u_b2", "u_b3"].filter(b => b !== a.sellerId && (!l || b !== l.userId))[Math.floor(Math.random() * 2)];
+          const amt = minNext(a);
+          if (bot && amt <= a.sim.max) { placeBid(a, bot, amt); changed = true; }
+        }
+      }
+    } else if (a.status === "settling" && a.settle) {
+      if (a.settle.autoPayAt && now >= a.settle.autoPayAt) { settleAuction(a); changed = true; }
+      else if (!a.settle.autoPayAt && now > a.settle.payBy) {
+        a.status = "settlement_failed"; a.settle.status = "expired"; S.tickets[a.ticketId].status = "active";
+        notify(a.winnerId, `Phiên “${evOf(a.eventId).name}” đã quá hạn thanh toán. Vé không được chuyển.`, "auction-" + a.id);
+        notify(a.sellerId, `Người thắng không thanh toán đúng hạn. Vé #${S.tickets[a.ticketId].tokenId} đã trở lại dùng được.`, "tickets"); changed = true;
+      }
+    }
+  }
+  for (const u of Object.values(S.users)) {
+    if (u.kyc.status === "pending" && u.kyc.resolveAt && now >= u.kyc.resolveAt) { resolveKyc(u); changed = true; }
+  }
+  for (const r of S.refunds) {
+    if (r.auto && r.status === "pending" && now - r.createdAt > 2500) { r.status = "processing"; changed = true; }
+    else if (r.auto && r.status === "processing" && now - r.createdAt > 9000) { r.status = "succeeded"; r.doneAt = now; notify(r.userId, `Đã hoàn ${vnd(r.amount)} cho “${evOf(r.eventId).name}”.`, "tickets"); changed = true; }
+  }
+  for (const o of S.orders) {
+    if (o.status === "paid" && now >= o.issueAt) { issueOrder(o); changed = true; }
+  }
+  if (UI.checkout && !UI.checkout.done && now >= UI.checkout.expiresAt) { releaseHold(); UI.checkout.expired = true; changed = true; }
+  if (changed) { save(); render(); }
+  else updateClocks();
+}
+function resolveKyc(u) {
+  const last = u.kyc.cccd.slice(-1);
+  u.kyc.resolveAt = null;
+  if (Object.values(S.users).some(o => o.id !== u.id && o.kyc.status === "verified" && o.kyc.cccd === u.kyc.cccd)) return rejectKyc(u, "DUPLICATE_IDENTITY");
+  if (last === "1") return rejectKyc(u, "FACE_MISMATCH");
+  if (last === "3") return rejectKyc(u, "PROVIDER_ERROR");
+  if (last === "2") { u.kyc.manual = true; u.kyc.score = 0.68; notify(u.id, "Hồ sơ xác minh của bạn cần chuyên viên xem thêm. Kết quả trong vòng 24 giờ.", "kyc"); return; }
+  u.kyc.status = "verified"; u.kyc.verifiedAt = Date.now();
+  notify(u.id, "Bạn đã xác minh danh tính thành công. Giờ bạn mua được vé sự kiện yêu cầu eKYC, mở phiên và trả giá.", "kyc");
+}
+function rejectKyc(u, code) {
+  u.kyc.status = "rejected"; u.kyc.reason = code;
+  if (code === "PROVIDER_ERROR") u.kyc.attempts.pop();
+  notify(u.id, "Xác minh danh tính chưa đạt: " + KYCR[code], "kyc");
+}
+
+/* ---------------- orders ---------------- */
+function releaseHold() { const c = UI.checkout; if (!c || c.released) return; const t = tierOf(evOf(c.eventId), c.tierId); t.held = Math.max(0, t.held - c.qty); c.released = true; }
+function issueOrder(o) {
+  const ev = evOf(o.eventId), t = tierOf(ev, o.tierId);
+  o.status = "issued";
+  for (let i = 0; i < o.qty; i++) {
+    const id = rid("t"), tokenId = 5000 + Object.keys(S.tickets).length * 7 + i;
+    S.tickets[id] = { id, ownerId: o.userId, eventId: ev.id, tierId: t.id, tokenId, status: "active", transfers: 0, txHash: txOf(id), mintedAt: Date.now(), payments: [{ payer: o.userId, amount: t.price, kind: "primary", at: Date.now() }] };
+  }
+  notify(o.userId, `Đã phát hành ${o.qty} vé “${ev.name}”. Vé nằm trong mục Vé của tôi.`, "tickets");
+}
+
+/* ---------------- gate token (QR động 30 giây) ---------------- */
+const win = () => Math.floor(Date.now() / 30000);
+const gateToken = (tid, w = win()) => `GT1.${tid}.${w}.${h32("gate-secret|" + tid + "|" + w).slice(0, 6)}`;
+function verifyGate(str, eventId) {
+  const p = String(str).trim().split(".");
+  if (p.length !== 4 || p[0] !== "GT1") return { ok: false, title: "Mã không hợp lệ", why: "Đây không phải mã vào cổng của NFT Ticket." };
+  const [, tid, w] = p; const t = S.tickets[tid];
+  if (!t || gateToken(tid, Number(w)) !== str.trim()) return { ok: false, title: "Mã không hợp lệ", why: "Chữ ký của mã không khớp. Có thể mã bị sửa." };
+  const cw = win(), grace = Date.now() % 30000 < 5000;
+  if (!(Number(w) === cw || (Number(w) === cw - 1 && grace))) return { ok: false, title: "Mã đã hết hạn", why: "Mã đổi mỗi 30 giây. Nhờ khách mở lại màn QR, không dùng ảnh chụp màn hình.", t };
+  const ev = evOf(t.eventId);
+  if (t.eventId !== eventId) return { ok: false, title: "Vé của sự kiện khác", why: `Vé này thuộc “${ev.name}”.`, t };
+  if (t.status === "used") return { ok: false, title: "Vé đã check-in", why: `Đã vào cổng lúc ${fmtTime(t.usedAt)}. Mỗi vé chỉ vào một lần.`, t };
+  if (t.status === "listed" || t.status === "settling") return { ok: false, title: "Vé đang rao bán", why: "Vé đang trong phiên đấu giá hoặc quyết toán nên không vào cổng được.", t };
+  if (t.status.startsWith("void")) return { ok: false, title: "Vé đã vô hiệu", why: "Sự kiện đã bị hủy.", t };
+  t.status = "used"; t.usedAt = Date.now(); t.usedTx = txOf("used" + t.id);
+  S.checkins.push({ ticketId: t.id, eventId, at: Date.now(), by: S.me });
+  return { ok: true, title: "Hợp lệ · mời vào", why: `${tierOf(ev, t.tierId).name} · vé #${t.tokenId}`, t };
+}
+
+/* ---------------- MFA cho thao tác đặc quyền ---------------- */
+function requireMfa(act, data) {
+  if (Date.now() - (S.lastMfa[S.me] || 0) < 15 * MIN) return true;
+  UI.modal = { type: "mfa", act, data }; renderModal(); return false;
+}
+
+/* ============================================================
+   VIEWS
+   ============================================================ */
+function route() { const h = (location.hash || "").slice(1); return h || defaultRoute(); }
+function defaultRoute() { const u = me(); if (roleIn(u, "platform_admin")) return "admin"; if (roleIn(u, "gate_staff")) return "gate"; if (roleIn(u, "kyc_reviewer")) return "kyc-review"; if (roleIn(u, "org_owner")) return "org"; return "events"; }
+
+function navLinks() {
+  const u = me(), r = route();
+  const links = [["events", "Sự kiện"], ["auctions", "Sàn đấu giá"], ["tickets", "Vé của tôi"], ["verify", "Xác minh vé"]];
+  if (roleIn(u, "org_owner") || roleIn(u, "org_manager")) links.push(["org", "Ban tổ chức"]);
+  if (roleIn(u, "gate_staff")) links.push(["gate", "Soát vé"]);
+  if (roleIn(u, "kyc_reviewer")) links.push(["kyc-review", "Duyệt eKYC"]);
+  if (roleIn(u, "platform_admin")) links.push(["admin", "Quản trị"]);
+  const base = r.split("-")[0];
+  return links.map(([h, l]) => `<a href="#${h}" class="${r === h || base === h.split("-")[0] && h !== "verify" && base !== "kyc" ? "on" : ""}">${l}</a>`).join("");
+}
+function renderChrome() {
+  const u = me();
+  document.getElementById("nav").innerHTML = navLinks();
+  const unread = u ? S.notifs.filter(n => n.userId === u.id && !n.read).length : 0;
+  document.getElementById("topRight").innerHTML = u
+    ? `<a class="bell" href="#notifications" aria-label="Thông báo${unread ? ", " + unread + " chưa đọc" : ""}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>${unread ? `<span class="dot">${unread}</span>` : ""}</a><a class="btn sec sm" href="#account">${esc(u.name.split(" ").slice(-1)[0])} · L${levelOf(u)}</a>`
+    : `<a class="btn sm" href="#login">Đăng nhập</a>`;
+  const personas = [["", "Khách (chưa đăng nhập)"], ["u_an", "An · người mua, L2"], ["u_binh", "Bình · người mua, L3"], ["u_chi", "Chi · chủ ban tổ chức"], ["u_dung", "Dũng · soát vé"], ["u_ha", "Hà · duyệt eKYC"], ["u_admin", "Huy · quản trị nền tảng"]];
+  const extra = S.me && !personas.some(p => p[0] === S.me) ? `<option value="${S.me}" selected>${esc(me().name)} (mới đăng ký)</option>` : "";
+  document.getElementById("demoBar").innerHTML = `<strong>Bản mẫu, dữ liệu giả lập</strong><span class="muted">Mã OTP/TOTP demo: <span class="mono">${DEMO_CODE}</span></span>
+    <label class="row" style="gap:8px"><span class="muted">Xem với vai</span><select class="in" id="persona" style="width:auto;padding:6px 10px">${personas.map(p => `<option value="${p[0]}" ${S.me === (p[0] || null) || (!S.me && !p[0]) ? "selected" : ""}>${p[1]}</option>`).join("")}${extra}</select></label>
+    <button class="btn ghost sm" data-act="reset">Đặt lại dữ liệu</button>`;
+}
+
+function cover(ev, big) {
+  const h = ev.hue, d = new Date(ev.startAt);
+  const tags = [];
+  if (ev.kycRequired) tags.push(`<span class="chip">Cần eKYC</span>`);
+  if (ev.status !== "published") tags.push(`<span class="chip">${ESTAT[ev.status][0]}</span>`);
+  else if (!inWindow(ev)) tags.push(`<span class="chip">${Date.now() < ev.saleStart ? "Sắp mở bán" : "Đã đóng bán"}</span>`);
+  return `<div class="cover" style="background:linear-gradient(160deg,hsl(${h} 46% 30%),hsl(${h + 18} 52% 18%));${big ? "aspect-ratio:16/6" : ""}">
+    <svg aria-hidden="true" width="100%" height="100%" style="position:absolute;inset:0;opacity:.18" preserveAspectRatio="none" viewBox="0 0 100 50"><g fill="none" stroke="#fff" stroke-width=".35">${[0,1,2,3,4,5].map(i => `<path d="M-5 ${44 - i * 7} Q 30 ${30 - i * 7 + (h % 9)} 60 ${40 - i * 6} T 110 ${28 - i * 6}"/>`).join("")}</g></svg>
+    <div class="tag">${tags.join("")}</div>
+    <div class="date" style="position:relative"><span>${d.toLocaleDateString("vi-VN", { weekday: "long" })} · tháng ${d.getMonth() + 1}</span><b class="num">${two(d.getDate())}</b></div></div>`;
+}
+function minPrice(ev) { return Math.min(...ev.tiers.map(t => t.price)); }
+
+function viewEvents() {
+  const list = Object.values(S.events).filter(e => ["published", "cancel_requested"].includes(e.status));
+  const cities = [...new Set(list.map(e => e.city))];
+  const q = UI.q.trim().toLowerCase();
+  let shown = list.filter(e => (!q || (e.name + " " + e.venue + " " + e.city).toLowerCase().includes(q)) && (!UI.city || e.city === UI.city));
+  shown.sort((a, b) => UI.sort === "price" ? minPrice(a) - minPrice(b) : a.startAt - b.startAt);
+  const openAuctions = Object.values(S.auctions).filter(a => a.status === "open").length;
+  return `<div class="stack" style="gap:24px">
+    <section class="hero">
+      <div class="stack" style="gap:10px"><span class="eyebrow">Vé sự kiện giá niêm yết · bán lại có trần giá</span>
+        <h1>Mua vé thật, vào cổng một lần, bán lại minh bạch</h1>
+        <p class="muted prose">Mỗi vé là một NFT trên mạng thử nghiệm Avalanche Fuji. Bạn không cần ví crypto hay tiền gas. Muốn rút lui thì bán lại qua sàn đấu giá, giá không vượt quá 150% giá gốc.</p></div>
+      <div class="panel trust"><div>Hoàn 100% nếu ban tổ chức hủy sự kiện</div><div>QR vào cổng đổi mỗi 30 giây, chống chụp màn hình</div><div>${openAuctions} phiên bán lại đang mở trên sàn</div></div>
+    </section>
+    <section class="row" aria-label="Tìm kiếm và lọc">
+      <input class="in" id="q" data-model="q" placeholder="Tìm theo tên sự kiện, địa điểm" value="${esc(UI.q)}" style="flex:1 1 260px" aria-label="Tìm sự kiện">
+      <select class="in" id="city" data-model="city" style="flex:0 1 200px" aria-label="Thành phố"><option value="">Mọi thành phố</option>${cities.map(c => `<option ${UI.city === c ? "selected" : ""}>${c}</option>`).join("")}</select>
+      <select class="in" id="sort" data-model="sort" style="flex:0 1 180px" aria-label="Sắp xếp"><option value="soon" ${UI.sort === "soon" ? "selected" : ""}>Sắp diễn ra</option><option value="price" ${UI.sort === "price" ? "selected" : ""}>Giá thấp trước</option></select>
+    </section>
+    <p class="muted small" aria-live="polite">${shown.length} sự kiện${q || UI.city ? " khớp bộ lọc" : ""}</p>
+    ${shown.length ? `<section class="grid g3">${shown.map(e => `<a class="ecard" href="#event-${e.id}">${cover(e)}<div class="b"><h3>${esc(e.name)}</h3><p class="muted small">${fmtTime(e.startAt)} · ${esc(e.venue)}, ${esc(e.city)}</p><p class="price">Từ <span class="mono">${vnd(minPrice(e))}</span></p></div></a>`).join("")}</section>`
+      : `<div class="empty"><h3>Không có sự kiện khớp “${esc(UI.q || UI.city)}”</h3><p class="muted">Thử từ khóa khác hoặc bỏ lọc thành phố.</p><button class="btn sec" data-act="clear-filter">Bỏ bộ lọc</button></div>`}
+  </div>`;
+}
+
+function viewEvent(id) {
+  const ev = evOf(id); if (!ev || ev.status === "draft") return notFound();
+  const org = S.orgs[ev.orgId];
+  const sel = UI.sel && UI.sel.eventId === id ? UI.sel : (UI.sel = { eventId: id, tierId: (ev.tiers.find(t => avail(t) > 0) || ev.tiers[0]).id, qty: 1 });
+  const auctions = Object.values(S.auctions).filter(a => a.eventId === id && a.status === "open");
+  const tier = tierOf(ev, sel.tierId);
+  const soldOut = avail(tier) <= 0;
+  return `<div class="stack" style="gap:24px">
+    <a href="#events" class="small">‹ Tất cả sự kiện</a>
+    <div style="border-radius:var(--r);overflow:hidden">${cover(ev, true)}</div>
+    <div class="split">
+      <div class="stack" style="gap:20px">
+        <div class="stack" style="gap:8px"><h1>${esc(ev.name)}</h1>
+          <div class="row small"><span>${fmtDT(ev.startAt)}</span><span class="muted">·</span><span>${esc(ev.venue)}, ${esc(ev.city)}</span></div>
+          <p class="small muted">Ban tổ chức: <strong style="color:var(--fg)">${esc(org.name)}</strong> · đã xác minh doanh nghiệp</p></div>
+        ${ev.status === "cancel_requested" ? info("warn", "Tạm dừng bán vé", "Ban tổ chức đã gửi yêu cầu hủy sự kiện và đang chờ nền tảng duyệt. Vé đã mua vẫn dùng được nếu yêu cầu bị từ chối. Nếu được duyệt, bạn được hoàn 100%.") : ""}
+        <p class="prose">${esc(ev.desc)}</p>
+        <div class="stack" style="gap:10px"><h2>Vé bán lại trên sàn</h2>
+          ${auctions.length ? auctions.map(a => auctionRow(a)).join("") : `<p class="muted small">Chưa có phiên bán lại nào cho sự kiện này.</p>`}</div>
+        <dl class="kv panel"><dt>Mở bán</dt><dd>${fmtDT(ev.saleStart)} → ${fmtDT(ev.saleEnd)}</dd><dt>Xác minh</dt><dd>${ev.kycRequired ? "Cần eKYC (cấp L3) để mua" : "Cần email và SĐT đã xác thực (cấp L2)"}</dd><dt>Bán lại</dt><dd>Qua đấu giá, trần 150% giá gốc</dd><dt>Hợp đồng vé</dt><dd class="mono small">${short(CONTRACT)} · Fuji (${CHAIN_ID})</dd></dl>
+      </div>
+      <aside class="panel stack" style="position:sticky;top:calc(80px + env(safe-area-inset-top,0px))" aria-label="Chọn vé">
+        <h2>Chọn vé</h2>
+        <div class="stack" style="gap:8px" role="radiogroup">${ev.tiers.map(t => { const a = avail(t); return `<label class="tier ${a <= 0 ? "off" : ""}"><input type="radio" name="tier" value="${t.id}" data-act="pick-tier" ${t.id === sel.tierId ? "checked" : ""} ${a <= 0 ? "disabled" : ""}><span class="t"><strong>${esc(t.name)}</strong><br><span class="small muted">${a <= 0 ? "Hết vé" : a < 20 ? `Còn ${a} vé` : `Tối đa ${t.limit} vé/tài khoản`}</span></span><span class="mono">${vnd(t.price)}</span></label>`; }).join("")}</div>
+        <div class="row between"><span>Số lượng</span><span class="stepper"><button data-act="qty" data-d="-1" aria-label="Bớt">−</button><span class="num" id="qtyv">${sel.qty}</span><button data-act="qty" data-d="1" aria-label="Thêm">+</button></span></div>
+        <div class="row between"><span class="muted">Tạm tính</span><strong class="mono">${vnd(tier.price * sel.qty)}</strong></div>
+        ${banner(UI.blocks["buy-" + id])}
+        <button class="btn block" data-act="buy" data-id="${id}" ${soldOut ? "disabled" : ""}>${soldOut ? "Hết vé" : "Mua vé"}</button>
+        <p class="hint">Vé không hoàn tiền, trừ khi sự kiện bị hủy. Bạn bán lại được qua sàn đấu giá.</p>
+      </aside>
+    </div></div>`;
+}
+function auctionRow(a) {
+  const t = S.tickets[a.ticketId], ev = evOf(a.eventId), l = lead(a);
+  return `<a class="panel row between" href="#auction-${a.id}" style="text-decoration:none;color:inherit;padding:14px 16px">
+    <span class="stack" style="gap:2px;min-width:0"><strong>${esc(tierOf(ev, t.tierId).name)} · vé #${t.tokenId}</strong><span class="small muted">${a.bids.length} lượt trả giá · trần ${vnd(a.cap)}</span></span>
+    <span class="stack" style="gap:2px;align-items:flex-end"><span class="mono" style="font-weight:600">${vnd(l ? l.amount : a.openPrice)}</span><span class="small muted">Còn <span data-until="${deadline(a)}">${dur(deadline(a) - Date.now())}</span></span></span></a>`;
+}
+
+function viewCheckout() {
+  const c = UI.checkout;
+  if (!c) return `<div class="empty"><h3>Chưa có đơn đang giữ chỗ</h3><p class="muted">Chọn vé ở trang sự kiện để bắt đầu.</p><a class="btn" href="#events">Xem sự kiện</a></div>`;
+  const ev = evOf(c.eventId), t = tierOf(ev, c.tierId), total = t.price * c.qty;
+  if (c.expired) return `<div class="stack" style="max-width:560px">${info("warn", "Hết thời gian giữ chỗ", "Vé đã được trả lại cho người khác mua. Bạn chưa bị trừ tiền.")}<a class="btn" href="#event-${ev.id}">Chọn lại vé</a></div>`;
+  if (c.failed) return `<div class="stack" style="max-width:560px">${info("danger", "Thanh toán không thành công", "Ngân hàng từ chối giao dịch. Bạn chưa bị trừ tiền và chỗ đã được trả lại. Thử lại với phương thức khác.")}<a class="btn" href="#event-${ev.id}">Thử lại</a></div>`;
+  return `<div class="split">
+    <div class="stack" style="gap:20px">
+      <ol class="steps"><li class="done"><span class="n">1</span>Chọn vé</li><li class="on"><span class="n">2</span>Xác nhận và thanh toán</li><li><span class="n">3</span>Nhận vé</li></ol>
+      <h1>Thanh toán</h1>
+      <div class="banner info"><span class="ic">i</span><div class="body"><strong>Đang giữ chỗ cho bạn: <span class="mono" data-until="${c.expiresAt}">${dur(c.expiresAt - Date.now())}</span></strong><p class="small">Hết thời gian này, vé được trả lại để người khác mua.</p></div></div>
+      <div class="panel stack"><h2>Phương thức thanh toán</h2><p class="hint">Cổng thanh toán giả lập. Không có giao dịch thật.</p>
+        ${[["atm", "Thẻ ATM nội địa (Napas)"], ["wallet", "Ví điện tử"], ["card", "Thẻ quốc tế Visa / Mastercard"]].map(([v, l], i) => `<label class="tier"><input type="radio" name="pm" value="${v}" ${i === 0 ? "checked" : ""}><span class="t">${l}</span></label>`).join("")}</div>
+    </div>
+    <aside class="panel stack" aria-label="Tóm tắt đơn">
+      <h2>Đơn của bạn</h2>
+      <div class="stack" style="gap:4px"><strong>${esc(ev.name)}</strong><span class="small muted">${fmtDT(ev.startAt)} · ${esc(ev.venue)}</span></div>
+      <hr class="sep">
+      <div class="row between"><span>${esc(t.name)} × ${c.qty}</span><span class="mono">${vnd(total)}</span></div>
+      <div class="row between"><span class="muted">Phí nền tảng</span><span class="mono muted">0 đ</span></div>
+      <div class="row between"><strong>Tổng</strong><strong class="mono" style="font-size:1.15rem">${vnd(total)}</strong></div>
+      <hr class="sep">
+      <label class="check"><input type="checkbox" id="agree"><span><strong>Vé không hoàn tiền, trừ khi sự kiện bị hủy. Bạn có thể bán lại vé qua sàn đấu giá.</strong><br><span class="small muted">Tôi đã đọc và đồng ý.</span></span></label>
+      ${UI.agreeErr ? `<p class="field-err" role="alert">Tích ô trên để xác nhận trước khi thanh toán.</p>` : ""}
+      <button class="btn block" data-act="pay" data-ok="1">Thanh toán ${vnd(total)}</button>
+      <button class="btn sec block sm" data-act="pay" data-ok="0">Mô phỏng thanh toán thất bại</button>
+      <button class="btn ghost sm" data-act="cancel-checkout">Bỏ giữ chỗ</button>
+    </aside></div>`;
+}
+
+function needLogin(title) {
+  return `<div class="stack" style="max-width:560px">${banner({ code: "AUTH_REQUIRED", detail: title })}</div>`;
+}
+function forbidden() { return `<div class="stack" style="max-width:560px">${banner({ code: "ROLE_FORBIDDEN", detail: "Trang này dành cho vai trò khác. Đổi vai ở thanh demo phía trên." })}</div>`; }
+function notFound() { return `<div class="empty"><h3>Không tìm thấy trang</h3><a class="btn" href="#events">Về trang sự kiện</a></div>`; }
+
+function viewTickets() {
+  const u = me(); if (!u) return needLogin("Đăng nhập để xem vé của bạn.");
+  const mine = Object.values(S.tickets).filter(t => t.ownerId === u.id).sort((a, b) => evOf(a.eventId).startAt - evOf(b.eventId).startAt);
+  const issuing = S.orders.filter(o => o.userId === u.id && o.status === "paid");
+  const toPay = Object.values(S.auctions).filter(a => a.status === "settling" && a.winnerId === u.id && a.settle && a.settle.status === "awaiting_payment");
+  const payouts = S.payouts.filter(p => p.userId === u.id);
+  const groups = { all: mine, usable: mine.filter(t => t.status === "active"), listed: mine.filter(t => ["listed", "settling"].includes(t.status)), refund: mine.filter(t => t.status.startsWith("void")), past: mine.filter(t => t.status === "used") };
+  const list = groups[UI.ticketFilter] || mine;
+  const tabs = [["all", "Tất cả"], ["usable", "Dùng được"], ["listed", "Đang bán lại"], ["refund", "Hoàn tiền"], ["past", "Đã check-in"]];
+  return `<div class="stack" style="gap:20px">
+    <div class="section-title"><h1>Vé của tôi</h1><span class="muted small">Ví nhận vé: <span class="mono">${short(u.wallet && u.wallet.address)}</span> (${u.wallet && u.wallet.type === "external" ? "ví của bạn" : "ví tạo tự động"})</span></div>
+    ${toPay.map(a => { const ev = evOf(a.eventId); return info("warn", `Bạn thắng phiên “${esc(ev.name)}”: thanh toán ${vnd(a.price)} trước ${fmtTime(a.settle.payBy)}`, `Còn <span class="mono" data-until="${a.settle.payBy}">${dur(a.settle.payBy - Date.now())}</span>. Vé chuyển vào tài khoản khi thanh toán xong.`, `<div><button class="btn sm" data-act="pay-settle" data-id="${a.id}">Thanh toán ${vnd(a.price)}</button></div>`); }).join("")}
+    ${issuing.map(o => info("info", `Đang phát hành ${o.qty} vé “${esc(evOf(o.eventId).name)}”`, "Đã nhận thanh toán. Vé sẽ hiện ở đây sau vài giây.")).join("")}
+    ${mine.length ? `<div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" class="${UI.ticketFilter === k ? "on" : ""}" data-act="tfilter" data-k="${k}">${l}<span class="cnt">${groups[k].length}</span></button>`).join("")}</div>` : ""}
+    ${!mine.length && !issuing.length ? `<div class="empty"><h3>Bạn chưa có vé nào</h3><p class="muted">Vé bạn mua hoặc thắng đấu giá sẽ hiện ở đây, kèm mã QR vào cổng.</p><a class="btn" href="#events">Khám phá sự kiện</a></div>`
+      : list.length ? `<div class="stack">${list.map(ticketCard).join("")}</div>` : `<p class="muted">Không có vé trong mục này.</p>`}
+    ${payouts.length ? `<section class="stack" style="gap:10px"><h2>Tiền bán lại</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>Vé</th><th class="r">Số tiền</th><th>Trạng thái</th></tr></thead><tbody>${payouts.map(p => `<tr><td>#${S.tickets[p.ticketId].tokenId} · ${esc(evOf(p.eventId).name)}</td><td class="r mono">${vnd(p.amount)}</td><td>${p.status === "hold" ? chip(["Chờ giải ngân", "warn"]) + `<div class="small muted">Giải ngân từ ${fmtDate(p.releaseAt)}, sau khi sự kiện kết thúc 1 ngày</div>` : chip(["Không giải ngân · tiền đã hoàn cho người mua", "danger"])}</td></tr>`).join("")}</tbody></table></div></section>` : ""}
+  </div>`;
+}
+function ticketCard(t) {
+  const ev = evOf(t.eventId), tier = tierOf(ev, t.tierId), u = me();
+  const a = Object.values(S.auctions).find(x => x.ticketId === t.id && ["open", "settling"].includes(x.status));
+  const refunds = S.refunds.filter(r => r.ticketId === t.id && r.userId === u.id);
+  let actions = "";
+  if (t.status === "active") actions = `<button class="btn sm" data-act="show-qr" data-id="${t.id}">Mã vào cổng</button><button class="btn sec sm" data-act="open-auction" data-id="${t.id}">Bán lại</button>`;
+  else if (t.status === "listed" && a) actions = `<a class="btn sec sm" href="#auction-${a.id}">Xem phiên</a>`;
+  else if (t.status === "settling") actions = `<span class="small muted">Chờ người thắng thanh toán</span>`;
+  else if (t.status === "used") actions = `<span class="small muted">Vào cổng lúc ${fmtTime(t.usedAt)}</span>`;
+  const statusLine = t.status === "listed" && a ? `<span class="small">Giá dẫn đầu <strong class="mono">${vnd(lead(a) ? lead(a).amount : a.openPrice)}</strong> · còn <span class="mono" data-until="${deadline(a)}">${dur(deadline(a) - Date.now())}</span></span>` : "";
+  return `<article class="stub">
+    <div class="main">
+      <div class="row between" style="align-items:flex-start"><div class="stack" style="gap:2px;min-width:0"><h3>${esc(ev.name)}</h3><span class="small muted">${fmtDT(ev.startAt)} · ${esc(ev.venue)}</span></div></div>
+      <div class="statusbox">${chip(TSTAT[t.status])}<span class="small"><strong>${esc(tier.name)}</strong> · vé #${t.tokenId}</span>${statusLine}</div>
+      ${UI.blocks["auc-" + t.id] ? banner(UI.blocks["auc-" + t.id]) : ""}
+      ${refunds.map(refundTrack).join("")}
+      <details class="chain"><summary>Chi tiết blockchain</summary><dl class="kv"><dt>Token ID</dt><dd class="mono">${t.tokenId}</dd><dt>Hợp đồng</dt><dd class="mono">${CONTRACT}</dd><dt>Mạng</dt><dd>Avalanche Fuji (chainId ${CHAIN_ID})</dd><dt>Giao dịch gần nhất</dt><dd class="mono">${short(t.txHash)}</dd><dt>Số lần chuyển</dt><dd>${t.transfers}</dd>${t.usedTx ? `<dt>Ghi nhận check-in</dt><dd class="mono">${short(t.usedTx)}</dd>` : ""}</dl></details>
+    </div>
+    <div class="tear">${actions || `<span class="small muted">${t.status.startsWith("void") ? "Không dùng được" : ""}</span>`}</div>
+  </article>`;
+}
+function refundTrack(r) {
+  const steps = ["pending", "processing", "succeeded"], idx = r.status === "failed" ? 1 : steps.indexOf(r.status);
+  return `<div class="panel stack" style="padding:14px;gap:8px;background:var(--surface-2);border:0"><div class="row between"><strong>Hoàn ${vnd(r.amount)}</strong>${chip(RSTAT[r.status])}</div>
+    <ol class="steps">${["Ghi nhận", "Đang chuyển tiền", "Đã về tài khoản"].map((l, i) => `<li class="${i < idx || r.status === "succeeded" ? "done" : i === idx ? "on" : ""}"><span class="n">${i + 1}</span>${l}</li>`).join("")}</ol>
+    <p class="small muted">Về ${esc(r.channel || "kênh thanh toán gốc")}${r.status === "succeeded" ? `, xong lúc ${fmtDT(r.doneAt)}` : r.status === "failed" ? ". Lần chuyển gần nhất bị lỗi, bộ phận vận hành đang xử lý và sẽ liên hệ bạn." : r.eta ? `, dự kiến trước ${fmtDate(r.eta)}` : ""}.</p></div>`;
+}
+
+function viewAuctions() {
+  const all = Object.values(S.auctions);
+  const open = all.filter(a => a.status === "open"), done = all.filter(a => a.status !== "open");
+  const evIds = [...new Set(all.map(a => a.eventId))];
+  let list = (UI.aucTab === "open" ? open : done).filter(a => !UI.aucFilter || a.eventId === UI.aucFilter);
+  list.sort((a, b) => UI.aucTab === "open" ? deadline(a) - deadline(b) : (b.closedAt || 0) - (a.closedAt || 0));
+  return `<div class="stack" style="gap:20px">
+    <div class="stack" style="gap:6px"><h1>Sàn đấu giá vé</h1><p class="muted prose">Chủ vé bán lại bằng đấu giá. Giá không vượt quá trần 150% giá gốc. Phiên đóng khi có giá chạm trần, hết hạn, hoặc 5 phút không ai trả giá tiếp.</p></div>
+    <div class="row between"><div class="tabs" role="tablist"><button class="${UI.aucTab === "open" ? "on" : ""}" data-act="auctab" data-k="open">Đang diễn ra<span class="cnt">${open.length}</span></button><button class="${UI.aucTab === "done" ? "on" : ""}" data-act="auctab" data-k="done">Đã kết thúc<span class="cnt">${done.length}</span></button></div>
+      ${all.length ? `<select class="in" id="aucFilter" data-model="aucFilter" style="width:auto" aria-label="Lọc theo sự kiện"><option value="">Mọi sự kiện</option>${evIds.map(id => `<option value="${id}" ${UI.aucFilter === id ? "selected" : ""}>${esc(evOf(id).name)}</option>`).join("")}</select>` : ""}</div>
+    ${list.length ? `<div class="grid g3">${list.map(aucCard).join("")}</div>`
+      : UI.aucFilter ? `<div class="empty"><h3>Không có phiên khớp bộ lọc</h3><button class="btn sec" data-act="clear-auc">Bỏ lọc sự kiện</button></div>`
+      : `<div class="empty"><h3>${UI.aucTab === "open" ? "Chưa có phiên nào đang mở" : "Chưa có phiên nào kết thúc"}</h3><p class="muted">Có vé muốn bán lại? Mở phiên từ Vé của tôi.</p><a class="btn" href="#tickets">Đến Vé của tôi</a></div>`}
+  </div>`;
+}
+function aucCard(a) {
+  const t = S.tickets[a.ticketId], ev = evOf(a.eventId), l = lead(a), price = a.price || (l ? l.amount : a.openPrice);
+  const pct = Math.round((price - a.base) / (a.cap - a.base || 1) * 100);
+  return `<a class="ecard" href="#auction-${a.id}"><div class="b" style="gap:10px">
+    <div class="row between">${chip(ASTAT[a.status], a.status === "open")}${ev.kycRequired ? `<span class="chip">Cần eKYC</span>` : ""}</div>
+    <div><h3>${esc(ev.name)}</h3><p class="small muted">${esc(tierOf(ev, t.tierId).name)} · vé #${t.tokenId} · ${fmtDay(ev.startAt)}</p></div>
+    <div class="row between" style="align-items:flex-end"><div><div class="small muted">${a.status === "open" ? (l ? "Giá dẫn đầu" : "Giá mở") : "Giá chốt"}</div><div class="mono" style="font-size:1.25rem;font-weight:600">${a.status === "closed" || a.status === "cancelled" ? "—" : vnd(price)}</div></div>
+      <div style="text-align:right"><div class="small muted">${a.status === "open" ? "Còn lại" : "Kết thúc"}</div><div class="mono">${a.status === "open" ? `<span data-until="${deadline(a)}">${dur(deadline(a) - Date.now())}</span>` : fmtDay(a.closedAt)}</div></div></div>
+    <div><div class="bar" aria-hidden="true"><i style="width:${Math.max(0, Math.min(100, pct))}%"></i></div><div class="row between small muted" style="margin-top:4px"><span>Gốc ${vnd(a.base)}</span><span>Trần ${vnd(a.cap)}</span></div></div>
+  </div></a>`;
+}
+
+function viewAuction(id) {
+  const a = S.auctions[id]; if (!a) return notFound();
+  const t = S.tickets[a.ticketId], ev = evOf(a.eventId), tier = tierOf(ev, t.tierId), l = lead(a), u = me();
+  const isSeller = u && a.sellerId === u.id, isWinner = u && a.winnerId === u.id;
+  const fl = UI.flash[a.id] && Date.now() - UI.flash[a.id] < 1500 ? "flash" : "";
+  const silenceLeft = l ? l.at + a.silenceMs - Date.now() : null;
+  let side = "";
+  if (a.status === "open") {
+    const block = UI.blocks["bid-" + id] || (u ? checkBid(a) : null);
+    const mn = minNext(a);
+    side = isSeller ? `<div class="stack"><h2>Phiên của bạn</h2><p class="small muted">Bạn hủy được phiên khi chưa có ai trả giá. Khi đã có giá, chỉ bộ phận vận hành hủy được.</p><button class="btn sec" data-act="cancel-auction" data-id="${id}" ${a.bids.length ? "disabled" : ""}>Hủy phiên</button>${a.bids.length ? `<p class="hint">Đã có ${a.bids.length} lượt trả giá nên không hủy được.</p>` : ""}</div>`
+      : `<div class="stack"><h2>Trả giá</h2>
+        ${block ? banner(block) : `<label class="f" for="bidAmt">Số tiền của bạn<input class="in mono" id="bidAmt" inputmode="numeric" value="${mn}" data-enter="bid" data-id="${id}"><span class="hint">Tối thiểu ${vnd(mn)}${mn === a.cap ? " (đúng trần)" : ""}. Bước giá ${vnd(a.step)}.</span></label>
+        ${UI.bidErr ? `<p class="field-err" role="alert">${esc(UI.bidErr)}</p>` : ""}
+        <div class="row"><button class="btn sec sm" data-act="bid-quick" data-id="${id}" data-v="${mn}">${vnd(mn)}</button>${a.cap > mn ? `<button class="btn sec sm" data-act="bid-quick" data-id="${id}" data-v="${a.cap}">Trả đúng trần ${vnd(a.cap)}</button>` : ""}</div>
+        <button class="btn block" data-act="bid" data-id="${id}">Trả giá</button>`}
+        <p class="small" style="padding:10px 12px;border-radius:8px;background:var(--surface-2)">Nếu sự kiện bị hủy, bạn được hoàn đủ số tiền đã trả.</p></div>`;
+  } else if (a.status === "settling") {
+    side = isWinner ? `<div class="stack"><h2>Bạn thắng phiên này</h2><p>Thanh toán <strong class="mono">${vnd(a.price)}</strong> trước <strong>${fmtTime(a.settle.payBy)}</strong> (còn <span class="mono" data-until="${a.settle.payBy}">${dur(a.settle.payBy - Date.now())}</span>).</p><button class="btn block" data-act="pay-settle" data-id="${id}">Thanh toán ${vnd(a.price)}</button><p class="hint">Hạn thanh toán 15 phút là giá trị demo, chưa chốt (NFT-11).</p></div>`
+      : `<div class="stack"><h2>Đang quyết toán</h2><p class="muted small">Đang chờ người thắng thanh toán. Vé được khóa cho đến khi xong.</p></div>`;
+  } else {
+    side = `<div class="stack"><h2>${ASTAT[a.status][0]}</h2><p class="small muted">${a.closeReason ? "Lý do đóng: " + CLOSE[a.closeReason] + "." : ""}${a.price ? ` Giá chốt ${vnd(a.price)}.` : ""}</p>${isWinner && a.status === "settled" ? `<a class="btn" href="#tickets">Xem vé trong tài khoản</a>` : ""}</div>`;
+  }
+  return `<div class="stack" style="gap:20px">
+    <a href="#auctions" class="small">‹ Sàn đấu giá</a>
+    <div class="row between" style="align-items:flex-start"><div class="stack" style="gap:4px"><h1>${esc(ev.name)}</h1><p class="muted">${esc(tier.name)} · vé #${t.tokenId} · ${fmtDT(ev.startAt)} · ${esc(ev.venue)}</p></div>${chip(ASTAT[a.status], a.status === "open")}</div>
+    <div class="split"><div class="stack" style="gap:20px">
+      <div class="lead ${fl}" aria-live="polite">
+        <div><span class="lbl">${a.status === "open" ? "Giá dẫn đầu" : "Giá chốt"}</span><span class="big">${l ? vnd(a.price || l.amount) : "Chưa có"}</span><span class="small muted">${l ? alias(a, l.userId) : "Giá mở " + vnd(a.openPrice)}</span></div>
+        <div><span class="lbl">${a.status === "open" ? "Đóng phiên sau" : "Đã đóng"}</span><span class="big">${a.status === "open" ? `<span data-until="${deadline(a)}">${dur(deadline(a) - Date.now())}</span>` : fmtTime(a.closedAt)}</span><span class="small muted">${a.status === "open" ? (l && silenceLeft < a.endAt - Date.now() ? "nếu 5 phút không ai trả giá" : "hạn người bán đặt " + fmtTime(a.endAt)) : CLOSE[a.closeReason] || ""}</span></div>
+        <div><span class="lbl">Trần giá (150%)</span><span class="big">${vnd(a.cap)}</span><span class="small muted">Giá gốc ${vnd(a.base)}</span></div>
+      </div>
+      ${a.status === "open" ? `<div class="row small">${chip(["Cập nhật trực tiếp", "ok"], true)}<span class="muted">Bước giá ${vnd(a.step)} · khoảng im lặng 5 phút tính từ giá hợp lệ mới nhất</span></div>` : ""}
+      <section class="panel stack" style="gap:6px"><h2>Lịch sử trả giá</h2>${a.bids.length ? `<ul class="hist">${a.bids.slice().reverse().map((b, i) => `<li class="${b.userId === S.me ? "me" : ""}"><span>${alias(a, b.userId)}${i === 0 && a.status === "open" ? ` <span class="chip accent">Dẫn đầu</span>` : ""}</span><span class="row" style="gap:12px"><span class="mono">${vnd(b.amount)}</span><span class="small muted">${fmtTime(b.at)}</span></span></li>`).join("")}</ul>` : `<p class="muted small">Chưa có lượt trả giá. Giá đầu tiên phải từ ${vnd(a.openPrice)}.</p>`}</section>
+    </div><aside class="panel">${side}</aside></div></div>`;
+}
+
+function viewLogin() {
+  const L = UI.login || (UI.login = { step: "email", email: "", attempts: 5, sends: [] });
+  if (me()) return `<div class="stack" style="max-width:420px">${info("ok", "Bạn đã đăng nhập", "Đang dùng tài khoản " + esc(me().email))}<a class="btn" href="#events">Về trang sự kiện</a></div>`;
+  let body = "";
+  if (L.step === "email") body = `<h1>Đăng nhập hoặc đăng ký</h1><p class="muted">Nhập email, chúng tôi gửi mã 6 số. Không cần mật khẩu.</p>
+    <label class="f" for="email">Email<input class="in" id="email" type="email" autocomplete="email" value="${esc(L.email)}" placeholder="ban@example.com" data-enter="send-otp"></label>
+    ${L.err ? `<p class="field-err" role="alert">${esc(L.err)}</p>` : ""}<button class="btn block" data-act="send-otp">Gửi mã</button>
+    <p class="hint">Thử email của tài khoản mẫu, ví dụ <span class="mono">binh.tran@example.com</span>, hoặc một email mới để xem luồng đăng ký.</p>`;
+  else if (L.step === "otp") {
+    const locked = L.lockedUntil && Date.now() < L.lockedUntil;
+    body = `<h1>Nhập mã xác thực</h1><p class="muted">Đã gửi mã 6 số đến <strong style="color:var(--fg)">${esc(L.email)}</strong>. Mã hết hạn sau 5 phút.</p>
+    ${locked ? info("danger", "Tạm khóa đăng nhập 15 phút", `Bạn đã nhập sai 5 lần. Thử lại lúc ${fmtTime(L.lockedUntil)}.`) : `<label class="f" for="otp">Mã 6 số<input class="in otp" id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" data-enter="verify-otp"></label>
+    ${L.err ? `<p class="field-err" role="alert">${esc(L.err)}</p>` : ""}<button class="btn block" data-act="verify-otp">Xác nhận</button>`}
+    <div class="row between small"><button class="btn ghost sm" data-act="login-back">Đổi email</button>${L.sentAt + MIN > Date.now() ? `<span class="muted">Gửi lại sau <span class="mono" data-until="${L.sentAt + MIN}">${dur(L.sentAt + MIN - Date.now())}</span></span>` : `<button class="btn ghost sm" data-act="send-otp">Gửi lại mã</button>`}</div>`;
+  } else if (L.step === "mfa") body = `<h1>Xác thực 2 lớp</h1><p class="muted">Tài khoản nhân sự cần mã từ ứng dụng xác thực (Google Authenticator, Authy…).</p>
+    <label class="f" for="totp">Mã 6 số<input class="in otp" id="totp" inputmode="numeric" maxlength="6" data-enter="verify-login-mfa"></label>${L.err ? `<p class="field-err" role="alert">${esc(L.err)}</p>` : ""}<button class="btn block" data-act="verify-login-mfa">Xác nhận</button>`;
+  return `<div class="panel stack" style="max-width:440px;margin:24px auto;gap:14px">${body}</div>`;
+}
+
+function viewAccount() {
+  const u = me(); if (!u) return needLogin("Đăng nhập để quản lý tài khoản.");
+  const lv = levelOf(u), P = UI.phone || {};
+  const hasLocked = Object.values(S.tickets).some(t => t.ownerId === u.id && ["listed", "settling"].includes(t.status));
+  return `<div class="stack" style="gap:20px"><h1>Tài khoản</h1>
+   <div class="grid g2">
+    <section class="panel stack"><h2>Cấp xác minh: L${lv}</h2><p class="small muted">Mỗi cấp mở thêm quyền giao dịch.</p>
+      <div class="ladder">${[["L1", "Email đã xác thực", "Xem vé, nhận hoàn tiền", lv >= 1], ["L2", "Thêm SĐT và ví nhận vé", "Mua vé, vào cổng", lv >= 2], ["L3", "Thêm xác minh danh tính (eKYC)", "Sự kiện cần eKYC, bán lại, trả giá", lv >= 3]].map(([k, c, o, ok]) => `<div class="lv ${ok ? "reached" : ""}"><b>${k}</b><span><strong class="small">${c}</strong><br><span class="small muted">${o}</span></span><span>${ok ? chip(["Đạt", "ok"]) : ""}</span></div>`).join("")}</div>
+      ${lv < 3 ? `<a class="btn sec" href="${lv < 2 ? "#account" : "#kyc"}">${lv < 2 ? "Xác thực SĐT bên dưới" : "Xác minh danh tính"}</a>` : ""}</section>
+    <section class="panel stack"><h2>Hồ sơ</h2>
+      <label class="f" for="dname">Tên hiển thị<input class="in" id="dname" value="${esc(u.name)}"></label>
+      <dl class="kv"><dt>Email</dt><dd>${esc(u.email)} ${chip(["Đã xác thực", "ok"])}</dd>${u.kyc.status === "verified" && u.kyc.legalName ? `<dt>Họ tên pháp lý</dt><dd>${esc(u.kyc.legalName)} <span class="hint">(từ eKYC, không sửa được)</span></dd>` : ""}</dl>
+      <div><button class="btn sec sm" data-act="save-name">Lưu</button></div></section>
+    <section class="panel stack"><h2>Số điện thoại</h2>
+      ${u.phoneVerified ? `<p>${esc(maskPhone(u.phone))} ${chip(["Đã xác thực", "ok"])}</p>` : P.step === "code" ? `<p class="small">Đã gửi SMS đến <strong>${esc(P.phone)}</strong>.</p><label class="f" for="smsCode">Mã 6 số<input class="in otp" id="smsCode" maxlength="6" inputmode="numeric" data-enter="verify-sms"></label>${P.err ? `<p class="field-err" role="alert">${esc(P.err)}</p>` : ""}<div class="row"><button class="btn" data-act="verify-sms">Xác nhận</button><button class="btn ghost sm" data-act="phone-back">Đổi số</button></div>`
+      : `<p class="small muted">Cần trước giao dịch đầu tiên. Mỗi số chỉ gắn một tài khoản.</p><label class="f" for="phone">Số điện thoại<input class="in" id="phone" inputmode="tel" placeholder="09xx xxx xxx" value="${esc(P.phone || "")}" data-enter="send-sms"></label>${P.err ? `<p class="field-err" role="alert">${esc(P.err)}</p>` : ""}<div><button class="btn" data-act="send-sms">Gửi mã SMS</button></div>`}</section>
+    <section class="panel stack"><h2>Ví nhận vé</h2>
+      ${u.wallet ? `<dl class="kv"><dt>Địa chỉ</dt><dd class="mono">${short(u.wallet.address)}</dd><dt>Loại</dt><dd>${u.wallet.type === "external" ? "Ví của bạn (liên kết bằng chữ ký)" : "Ví tạo tự động, nền tảng giữ khóa"}</dd><dt>Mạng</dt><dd>Avalanche Fuji (${CHAIN_ID})</dd></dl>` : `<p>Chưa có ví.</p>`}
+      ${hasLocked ? `<p class="small muted">Bạn đang có vé trong phiên đấu giá hoặc quyết toán, nên tạm thời chưa đổi ví được.</p>` : `<div><button class="btn sec sm" data-act="link-wallet">${u.wallet && u.wallet.type === "external" ? "Đổi ví khác" : "Liên kết ví của tôi"}</button></div>`}
+      <p class="hint">Không bắt buộc. Ví tạo tự động đã đủ để mua, vào cổng và bán lại.</p></section>
+    <section class="panel stack"><h2>Xác minh danh tính</h2><p>${chip({ not_started: ["Chưa xác minh", ""], pending: ["Đang xác minh", "info"], verified: ["Đã xác minh", "ok"], rejected: ["Chưa đạt", "danger"], revoked: ["Đã thu hồi", "danger"] }[u.kyc.status])}</p><div><a class="btn sec sm" href="#kyc">${u.kyc.status === "verified" ? "Xem chi tiết" : "Mở luồng xác minh"}</a></div></section>
+    <section class="panel stack"><h2>Bảo mật và phiên đăng nhập</h2>
+      ${isStaff(u) ? `<p class="small">Xác thực 2 lớp (TOTP): ${chip(["Đã bật", "ok"])} <span class="hint">Bắt buộc với nhân sự.</span></p>` : ""}
+      <ul class="hist"><li><span>Chrome trên macOS · Hà Nội <span class="chip accent">Thiết bị này</span></span><span class="small muted">Đang hoạt động</span></li><li><span>Ứng dụng iOS · Hà Nội</span><span class="small muted">2 ngày trước</span></li></ul>
+      <div class="row"><button class="btn sec sm" data-act="logout-all">Đăng xuất mọi thiết bị khác</button><button class="btn ghost sm" data-act="logout">Đăng xuất</button></div></section>
+   </div></div>`;
+}
+
+function viewKyc() {
+  const u = me(); if (!u) return needLogin("Đăng nhập để xác minh danh tính.");
+  const k = u.kyc, K = UI.kyc || (UI.kyc = { step: "consent" });
+  const recent = k.attempts.filter(t => Date.now() - t < DAY).length;
+  const head = `<a href="#account" class="small">‹ Tài khoản</a><h1>Xác minh danh tính</h1>`;
+  if (k.status === "verified") return `<div class="stack" style="max-width:620px">${head}${info("ok", "Bạn đã xác minh danh tính", `Xác minh lúc ${fmtDT(k.verifiedAt)}. Bạn đã đạt cấp L3.`)}<dl class="kv panel"><dt>Họ tên</dt><dd>${esc(k.legalName)}</dd><dt>Ngày sinh</dt><dd>${esc(k.dob)}</dd><dt>CCCD</dt><dd class="mono">•••• •••• ${esc(k.cccd.slice(-4))}</dd></dl></div>`;
+  if (k.status === "pending") return `<div class="stack" style="max-width:620px">${head}${info("info", "Đang xác minh", k.manual ? "Hồ sơ cần chuyên viên xem thêm. Kết quả trong vòng 24 giờ, bạn sẽ nhận thông báo." : "Đang so khớp ảnh CCCD và selfie, thường chỉ mất vài giây…")}<p class="small muted">Trong lúc chờ, bạn vẫn mua được vé ở sự kiện không yêu cầu eKYC.</p></div>`;
+  if (k.status === "revoked") return `<div class="stack" style="max-width:620px">${head}${banner({ code: "KYC_REVOKED" })}</div>`;
+  if (k.status === "rejected" && K.step === "consent" && !K.retry) return `<div class="stack" style="max-width:620px">${head}${info("danger", "Xác minh chưa đạt", esc(KYCR[k.reason]))}
+    ${recent >= 3 ? `<p class="small">Bạn đã thử ${recent} lần trong 24 giờ. Thử lại sau, hoặc liên hệ hỗ trợ.</p>` : `<p class="small muted">Còn ${3 - recent} lần thử trong 24 giờ.</p><div><button class="btn" data-act="kyc-retry">Thử lại</button></div>`}</div>`;
+  const stepIdx = { consent: 0, doc: 1, review: 2, selfie: 3 }[K.step];
+  const steps = `<ol class="steps">${["Đồng ý", "Chụp CCCD", "Kiểm tra thông tin", "Selfie"].map((l, i) => `<li class="${i < stepIdx ? "done" : i === stepIdx ? "on" : ""}"><span class="n">${i + 1}</span>${l}</li>`).join("")}</ol>`;
+  let body = "";
+  if (K.step === "consent") body = `<h2>Đồng ý xử lý dữ liệu cá nhân</h2><div class="prose stack small" style="gap:8px">
+      <p><strong>Mục đích:</strong> xác minh bạn là người thật, đủ 18 tuổi và mỗi người chỉ có một tài khoản giao dịch, để chống đầu cơ vé.</p>
+      <p><strong>Dữ liệu thu:</strong> ảnh hai mặt CCCD gắn chip và một ảnh selfie. Ảnh gửi thẳng cho nhà cung cấp eKYC. Chúng tôi chỉ lưu họ tên, ngày sinh, 4 số cuối CCCD và kết quả xác minh.</p>
+      <p><strong>Thời gian lưu:</strong> đến khi bạn xóa tài khoản, trừ dữ liệu giao dịch phải giữ theo quy định pháp luật.</p>
+      <p><strong>Quyền của bạn:</strong> rút lại đồng ý bất cứ lúc nào. Khi đó bạn mất cấp L3 nhưng vẫn mua được vé thường. Theo Nghị định 13/2023/NĐ-CP.</p></div>
+    <label class="check"><input type="checkbox" id="consent"><span>Tôi đồng ý cho NFT Ticket và nhà cung cấp eKYC xử lý dữ liệu trên.</span></label>
+    ${K.err ? `<p class="field-err" role="alert">${esc(K.err)}</p>` : ""}<div class="row"><button class="btn" data-act="kyc-consent">Tiếp tục</button><a class="btn ghost" href="#account">Để sau</a></div>`;
+  else if (K.step === "doc") body = `<h2>Chụp CCCD gắn chip</h2><p class="small muted">Đặt thẻ trên nền tối, đủ sáng, không che góc. Môi trường thử nghiệm không dùng giấy tờ thật.</p>
+    <div class="grid g2"><label class="f" for="front">Mặt trước<input class="in" type="file" id="front" accept="image/*"></label><label class="f" for="back">Mặt sau<input class="in" type="file" id="back" accept="image/*"></label></div>
+    <label class="f" for="cccd">Số CCCD (12 số, thay cho bước đọc ảnh tự động)<input class="in mono" id="cccd" inputmode="numeric" maxlength="12" value="${esc(K.cccd || "")}" placeholder="001099001230" data-enter="kyc-doc"><span class="hint">Kịch bản mock: số cuối 0 → đạt · 1 → khuôn mặt không khớp · 2 → chờ duyệt tay · 3 → lỗi hệ thống.</span></label>
+    ${K.err ? `<p class="field-err" role="alert">${esc(K.err)}</p>` : ""}<div class="row"><button class="btn" data-act="kyc-doc">Tiếp tục</button><button class="btn ghost" data-act="kyc-step" data-s="consent">Quay lại</button></div>`;
+  else if (K.step === "review") body = `<h2>Kiểm tra thông tin đọc từ CCCD</h2><p class="small muted">Nếu sai, chụp lại ảnh rõ hơn. Bạn không sửa tay được các trường này.</p>
+    <dl class="kv panel" style="background:var(--surface-2);border:0"><dt>Họ tên</dt><dd>${esc(u.name.toUpperCase())}</dd><dt>Ngày sinh</dt><dd>14/03/1998</dd><dt>Số CCCD</dt><dd class="mono">${esc(K.cccd.slice(0, 3))}••••••${esc(K.cccd.slice(-3))}</dd><dt>Có giá trị đến</dt><dd>14/03/2038</dd></dl>
+    <div class="row"><button class="btn" data-act="kyc-step" data-s="selfie">Đúng, tiếp tục</button><button class="btn ghost" data-act="kyc-step" data-s="doc">Chụp lại</button></div>`;
+  else if (K.step === "selfie") body = `<h2>Chụp selfie</h2><p class="small muted">Nhìn thẳng, bỏ kính và khẩu trang. Khi được hỏi, quay đầu chậm sang trái rồi sang phải để xác nhận người thật.</p>
+    <div class="viewfinder"><span class="muted small" style="position:relative">${K.checking ? "Đang kiểm tra người thật… quay đầu sang trái" : "Camera thật có trong ứng dụng. Bản mẫu dùng ảnh tải lên hoặc nút mô phỏng."}</span></div>
+    <label class="f" for="selfie">Ảnh selfie (không bắt buộc ở bản mẫu)<input class="in" type="file" id="selfie" accept="image/*"></label>
+    <div class="row"><button class="btn" data-act="kyc-selfie" ${K.checking ? "disabled" : ""}>Chụp và gửi</button><button class="btn ghost" data-act="kyc-step" data-s="review">Quay lại</button></div>`;
+  return `<div class="stack" style="max-width:680px;gap:16px">${head}${steps}<div class="panel stack">${body}</div></div>`;
+}
+
+function viewKycReview() {
+  const u = me(); if (!roleIn(u, "kyc_reviewer")) return u ? forbidden() : needLogin();
+  const queue = Object.values(S.users).filter(x => x.kyc.status === "pending" && x.kyc.manual);
+  return `<div class="stack" style="gap:20px"><div class="stack" style="gap:6px"><h1>Duyệt eKYC thủ công</h1><p class="muted prose">Hồ sơ có điểm tin cậy trong ngưỡng cần người xem. Dữ liệu đã che một phần, mỗi lần xem được ghi kiểm toán. Bạn không duyệt hồ sơ của chính mình.</p></div>
+    ${queue.length ? queue.map(x => `<section class="panel stack"><div class="row between"><h2>${esc(x.kyc.legalName || x.name.toUpperCase())}</h2>${chip(["Chờ duyệt", "info"])}</div>
+      <dl class="kv"><dt>Ngày sinh</dt><dd>${esc(x.kyc.dob || "14/03/1998")}</dd><dt>CCCD</dt><dd class="mono">•••• •••• ${esc(x.kyc.cccd.slice(-4))}</dd><dt>Điểm khớp khuôn mặt</dt><dd class="mono">${x.kyc.score} <span class="hint">(ngưỡng tự duyệt 0,85)</span></dd><dt>Email</dt><dd>${esc(maskEmail(x.email))}</dd><dt>Nộp lúc</dt><dd>${fmtDT(x.kyc.submittedAt || Date.now())}</dd></dl>
+      <div class="row"><select class="in" id="rr-${x.id}" style="width:auto" aria-label="Lý do từ chối">${["FACE_MISMATCH", "DOC_UNREADABLE", "LIVENESS_FAILED", "DOC_EXPIRED", "UNDERAGE"].map(c => `<option value="${c}">${c}</option>`).join("")}</select>
+      <button class="btn" data-act="kyc-approve" data-id="${x.id}" ${x.id === u.id ? "disabled" : ""}>Duyệt đạt</button><button class="btn sec" data-act="kyc-reject" data-id="${x.id}" ${x.id === u.id ? "disabled" : ""}>Từ chối</button></div></section>`).join("")
+      : `<div class="empty"><h3>Không có hồ sơ chờ duyệt</h3><p class="muted">Hồ sơ cần xem tay sẽ hiện ở đây. Thử: đăng nhập bằng An, làm eKYC với số CCCD kết thúc bằng 2.</p></div>`}</div>`;
+}
+
+/* ---------- organizer ---------- */
+function myOrgId(u) { const r = u && u.roles.find(r => r.scope === "org"); return r && r.id; }
+function viewOrg() {
+  const u = me(), oid = myOrgId(u); if (!oid) return u ? forbidden() : needLogin();
+  const org = S.orgs[oid], evs = Object.values(S.events).filter(e => e.orgId === oid).sort((a, b) => a.startAt - b.startAt);
+  const sold = evs.filter(e => e.status !== "cancelled").reduce((s, e) => s + e.tiers.reduce((x, t) => x + t.sold, 0), 0);
+  const rev = evs.filter(e => e.status !== "cancelled").reduce((s, e) => s + e.tiers.reduce((x, t) => x + t.sold * t.price, 0), 0);
+  const scans = S.checkins.filter(c => evOf(c.eventId).orgId === oid).length;
+  return `<div class="stack" style="gap:20px">
+    <div class="section-title"><div class="stack" style="gap:4px"><h1>${esc(org.name)}</h1><p class="muted small">Bạn là chủ tài khoản ban tổ chức</p></div><a class="btn" href="#org-new">Tạo sự kiện</a></div>
+    <div class="grid g4"><div class="stat"><b>${sold.toLocaleString("vi-VN")}</b><span>Vé đã bán</span></div><div class="stat"><b class="mono" style="font-size:1.25rem">${vnd(rev)}</b><span>Doanh thu sơ cấp, giữ đến 3 ngày sau sự kiện</span></div><div class="stat"><b>${scans}</b><span>Lượt check-in hôm nay</span></div><div class="stat"><b>${evs.filter(e => e.status === "published").length}</b><span>Sự kiện đang bán</span></div></div>
+    <div class="tbl-wrap"><table class="t"><thead><tr><th>Sự kiện</th><th>Ngày</th><th>Trạng thái</th><th class="r">Đã bán</th><th></th></tr></thead><tbody>
+    ${evs.map(e => { const s = e.tiers.reduce((x, t) => x + t.sold, 0), q = e.tiers.reduce((x, t) => x + t.qty, 0); return `<tr><td><strong>${esc(e.name)}</strong><div class="small muted">${esc(e.city)}</div></td><td class="num">${fmtDay(e.startAt)}</td><td>${chip(ESTAT[e.status])}</td><td class="r num">${s}/${q}</td><td class="r"><a class="btn sec sm" href="#org-event-${e.id}">Quản lý</a></td></tr>`; }).join("")}
+    </tbody></table></div></div>`;
+}
+function viewOrgEvent(id) {
+  const u = me(), ev = evOf(id); if (!ev || myOrgId(u) !== ev.orgId) return u ? forbidden() : needLogin();
+  const staff = Object.values(S.users).filter(x => x.roles.some(r => r.role === "gate_staff" && r.id === id));
+  const scans = S.checkins.filter(c => c.eventId === id).length;
+  let action = "";
+  if (ev.status === "draft") action = `<section class="panel stack"><h2>Xuất bản</h2><p class="small muted">Sau khi xuất bản, sự kiện hiện công khai và mở bán theo lịch. Cần nhập lại mã 2 lớp.</p>${UI.pubErr ? `<p class="field-err">${esc(UI.pubErr)}</p>` : ""}<div><button class="btn" data-act="publish" data-id="${id}">Xuất bản sự kiện</button></div></section>`;
+  else if (ev.status === "published") action = `<section class="panel stack"><h2>Yêu cầu hủy sự kiện</h2><p class="small muted">Khi gửi, sự kiện dừng bán và không mở phiên đấu giá mới. Nền tảng duyệt thì mọi người giữ vé được hoàn 100%. Từ chối thì sự kiện bán tiếp bình thường.</p>
+      <label class="f" for="cr-reason">Lý do<textarea class="in" id="cr-reason" placeholder="Ví dụ: nghệ sĩ chính hủy lịch diễn vì lý do sức khỏe"></textarea></label>
+      <label class="f" for="cr-evidence">Bằng chứng<input class="in" id="cr-evidence" placeholder="Số công văn, đường dẫn tài liệu"></label>${UI.crErr ? `<p class="field-err" role="alert">${esc(UI.crErr)}</p>` : ""}
+      <div><button class="btn danger" data-act="cancel-request" data-id="${id}">Gửi yêu cầu hủy</button></div></section>`;
+  else if (ev.status === "cancel_requested") action = info("warn", "Đang chờ nền tảng duyệt yêu cầu hủy", `Gửi lúc ${fmtDT(ev.cancelReq.at)}. Lý do: ${esc(ev.cancelReq.reason)}`);
+  else if (ev.status === "cancelled") action = info("danger", "Sự kiện đã hủy", "Vé đã vô hiệu. Hoàn tiền cho người mua đang được xử lý theo lô.");
+  return `<div class="stack" style="gap:20px"><a href="#org" class="small">‹ Bảng điều khiển</a>
+    <div class="section-title"><div class="stack" style="gap:4px"><h1>${esc(ev.name)}</h1><p class="muted small">${fmtDT(ev.startAt)} · ${esc(ev.venue)}, ${esc(ev.city)}</p></div>${chip(ESTAT[ev.status])}</div>
+    ${ev.cancelReq && ev.cancelReq.status === "rejected" ? info("info", "Yêu cầu hủy trước đã bị từ chối", esc(ev.cancelReq.rejectReason || "")) : ""}
+    <div class="grid g4"><div class="stat"><b>${ev.tiers.reduce((x, t) => x + t.sold, 0)}</b><span>Vé đã bán</span></div><div class="stat"><b>${scans}</b><span>Đã check-in</span></div><div class="stat"><b>${Object.values(S.auctions).filter(a => a.eventId === id && a.status === "open").length}</b><span>Phiên bán lại đang mở</span></div><div class="stat"><b>${ev.kycRequired ? "Có" : "Không"}</b><span>Yêu cầu eKYC</span></div></div>
+    <section class="stack" style="gap:10px"><h2>Hạng vé</h2><div class="tbl-wrap"><table class="t"><thead><tr><th>Hạng</th><th class="r">Giá</th><th>Đã bán</th><th class="r">Hạn mức/TK</th></tr></thead><tbody>${ev.tiers.map(t => `<tr><td>${esc(t.name)}</td><td class="r mono">${vnd(t.price)}</td><td style="min-width:160px"><div class="num small">${t.sold}/${t.qty}</div><div class="bar"><i style="width:${t.qty ? t.sold / t.qty * 100 : 0}%"></i></div></td><td class="r num">${t.limit}</td></tr>`).join("")}</tbody></table></div></section>
+    <div class="grid g2">
+      <section class="panel stack"><h2>Nhân sự soát vé</h2><p class="small muted">Chỉ quét được vé của sự kiện này. Quyền tự hết hạn 24 giờ sau khi sự kiện kết thúc.</p>
+        ${staff.length ? `<ul class="hist">${staff.map(s => { const r = s.roles.find(r => r.role === "gate_staff" && r.id === id); return `<li><span>${esc(s.name)}<br><span class="small muted">${esc(maskEmail(s.email))} · hết hạn ${fmtDay(r.expiresAt)}</span></span><button class="btn ghost sm" data-act="revoke-staff" data-id="${s.id}" data-ev="${id}">Thu hồi</button></li>`; }).join("")}</ul>` : `<p class="small muted">Chưa có ai.</p>`}
+        ${["published", "draft"].includes(ev.status) ? `<label class="f" for="staffEmail">Thêm theo email<input class="in" id="staffEmail" type="email" placeholder="nhanvien@example.com" data-enter="assign-staff" data-id="${id}"><span class="hint">Người đó cần có tài khoản và bật xác thực 2 lớp. Thử <span class="mono">binh.tran@example.com</span>.</span></label>${UI.staffErr ? `<p class="field-err" role="alert">${esc(UI.staffErr)}</p>` : ""}<div><button class="btn sec sm" data-act="assign-staff" data-id="${id}">Giao quyền soát vé</button></div>` : ""}</section>
+      ${action}
+    </div></div>`;
+}
+function wizDefault() { const s = at(30, 19, 30); const d = t => new Date(t - new Date(t).getTimezoneOffset() * MIN).toISOString().slice(0, 16);
+  return { step: 0, name: "Đêm Acoustic Phố Cổ", desc: "Đêm nhạc mộc trên sân thượng, 3 nghệ sĩ khách mời, sức chứa 250 người.", venue: "Sân thượng Tòa nhà Hàng Bạc", city: "Hà Nội",
+    start: d(s), end: d(s + 3 * HOUR), saleStart: d(Date.now() + HOUR), saleEnd: d(s - 2 * HOUR), kyc: false,
+    tiers: [{ name: "Vé thường", price: 350000, qty: 200, limit: 4 }, { name: "Bàn 4 người", price: 1600000, qty: 12, limit: 1 }] }; }
+function viewOrgNew() {
+  const u = me(), oid = myOrgId(u); if (!oid) return u ? forbidden() : needLogin();
+  const W = UI.wiz || (UI.wiz = wizDefault());
+  const labels = ["Thông tin", "Thời gian", "Hạng vé", "Xem lại"];
+  const steps = `<ol class="steps">${labels.map((l, i) => `<li class="${i < W.step ? "done" : i === W.step ? "on" : ""}"><span class="n">${i + 1}</span>${l}</li>`).join("")}</ol>`;
+  const inp = (k, label, type = "text", hint = "") => `<label class="f" for="w-${k}">${label}<input class="in" id="w-${k}" type="${type}" data-wiz="${k}" value="${esc(W[k])}">${hint ? `<span class="hint">${hint}</span>` : ""}</label>`;
+  let body = "";
+  if (W.step === 0) body = `${inp("name", "Tên sự kiện")}<label class="f" for="w-desc">Mô tả<textarea class="in" id="w-desc" data-wiz="desc">${esc(W.desc)}</textarea></label><div class="grid g2">${inp("venue", "Địa điểm")}${inp("city", "Thành phố")}</div>`;
+  else if (W.step === 1) body = `<div class="grid g2">${inp("start", "Bắt đầu", "datetime-local")}${inp("end", "Kết thúc", "datetime-local")}${inp("saleStart", "Mở bán", "datetime-local")}${inp("saleEnd", "Đóng bán", "datetime-local", "Phải trước giờ bắt đầu.")}</div>`;
+  else if (W.step === 2) body = `${W.tiers.map((t, i) => `<div class="panel stack" style="background:var(--surface-2);border:0;padding:14px"><div class="row between"><strong>Hạng ${i + 1}</strong>${W.tiers.length > 1 ? `<button class="btn ghost sm" data-act="wiz-del" data-i="${i}">Xóa</button>` : ""}</div>
+      <div class="grid g4"><label class="f" for="wt-${i}-name">Tên hạng<input class="in" id="wt-${i}-name" data-tier="${i}.name" value="${esc(t.name)}"></label><label class="f" for="wt-${i}-price">Giá (đ)<input class="in mono" id="wt-${i}-price" inputmode="numeric" data-tier="${i}.price" value="${t.price}"></label><label class="f" for="wt-${i}-qty">Số lượng<input class="in mono" id="wt-${i}-qty" inputmode="numeric" data-tier="${i}.qty" value="${t.qty}"></label><label class="f" for="wt-${i}-limit">Tối đa/tài khoản<input class="in mono" id="wt-${i}-limit" inputmode="numeric" data-tier="${i}.limit" value="${t.limit}"></label></div></div>`).join("")}
+      <div><button class="btn sec sm" data-act="wiz-add">Thêm hạng vé</button></div>
+      <label class="check"><input type="checkbox" id="w-kyc" data-wiz="kyc" ${W.kyc ? "checked" : ""}><span><strong>Yêu cầu xác minh danh tính (eKYC) khi mua</strong><br><span class="small muted">Chống đầu cơ cho sự kiện hot. Người mua cần đạt cấp L3.</span></span></label>`;
+  else body = `<dl class="kv"><dt>Tên</dt><dd>${esc(W.name)}</dd><dt>Địa điểm</dt><dd>${esc(W.venue)}, ${esc(W.city)}</dd><dt>Thời gian</dt><dd>${fmtDT(new Date(W.start).getTime())} → ${fmtTime(new Date(W.end).getTime())}</dd><dt>Mở bán</dt><dd>${fmtDT(new Date(W.saleStart).getTime())} → ${fmtDT(new Date(W.saleEnd).getTime())}</dd><dt>eKYC</dt><dd>${W.kyc ? "Bắt buộc" : "Không"}</dd></dl>
+      <div class="tbl-wrap"><table class="t"><thead><tr><th>Hạng</th><th class="r">Giá</th><th class="r">Số lượng</th><th class="r">Tối đa/TK</th></tr></thead><tbody>${W.tiers.map(t => `<tr><td>${esc(t.name)}</td><td class="r mono">${vnd(t.price)}</td><td class="r num">${t.qty}</td><td class="r num">${t.limit}</td></tr>`).join("")}</tbody></table></div>
+      <p class="small muted">Bán lại qua đấu giá với trần 150% giá gốc theo cấu hình nền tảng.</p>`;
+  return `<div class="stack" style="max-width:820px;gap:16px"><a href="#org" class="small">‹ Bảng điều khiển</a><h1>Tạo sự kiện</h1>${steps}
+    <div class="panel stack">${body}${W.err ? `<p class="field-err" role="alert">${esc(W.err)}</p>` : ""}
+    <div class="row between"><div>${W.step ? `<button class="btn ghost" data-act="wiz-back">Quay lại</button>` : ""}</div><div class="row">${W.step < 3 ? `<button class="btn" data-act="wiz-next">Tiếp tục</button>` : `<button class="btn sec" data-act="wiz-save" data-pub="0">Lưu nháp</button><button class="btn" data-act="wiz-save" data-pub="1">Lưu và xuất bản</button>`}</div></div></div></div>`;
+}
+function wizValidate(W) {
+  if (W.step === 0) { if (W.name.trim().length < 4) return "Tên sự kiện cần ít nhất 4 ký tự."; if (!W.venue.trim() || !W.city.trim()) return "Nhập địa điểm và thành phố."; }
+  if (W.step === 1) { const s = +new Date(W.start), e = +new Date(W.end), ss = +new Date(W.saleStart), se = +new Date(W.saleEnd);
+    if ([s, e, ss, se].some(isNaN)) return "Điền đủ bốn mốc thời gian."; if (s <= Date.now()) return "Giờ bắt đầu phải ở tương lai."; if (e <= s) return "Giờ kết thúc phải sau giờ bắt đầu."; if (se > s) return "Đóng bán phải trước giờ bắt đầu."; if (ss >= se) return "Mở bán phải trước đóng bán."; }
+  if (W.step === 2) { for (const [i, t] of W.tiers.entries()) { if (!String(t.name).trim()) return `Hạng ${i + 1}: nhập tên hạng.`; if (!(+t.price >= 10000)) return `Hạng ${i + 1}: giá tối thiểu 10.000 đ.`; if (!(+t.qty >= 1)) return `Hạng ${i + 1}: số lượng phải từ 1.`; if (!(+t.limit >= 1 && +t.limit <= 10)) return `Hạng ${i + 1}: tối đa/tài khoản từ 1 đến 10.`; } }
+  return null;
+}
+
+/* ---------- gate ---------- */
+function viewGate() {
+  const u = me(); if (!roleIn(u, "gate_staff")) return u ? forbidden() : needLogin();
+  const evIds = u.roles.filter(r => r.role === "gate_staff" && r.expiresAt > Date.now()).map(r => r.id);
+  const evId = UI.gateEv && evIds.includes(UI.gateEv) ? UI.gateEv : (UI.gateEv = evIds[0]);
+  const ev = evOf(evId), r = UI.scan;
+  const sims = Object.values(S.tickets).filter(t => ["e1", "e2"].includes(t.eventId)).slice(0, 6);
+  const done = S.checkins.filter(c => c.eventId === evId).length;
+  return `<div class="stack" style="gap:20px">
+    <div class="section-title"><div class="stack" style="gap:4px"><h1>Soát vé</h1><p class="muted small">${esc(ev.name)} · ${fmtDT(ev.startAt)}</p></div><span class="chip accent">${done} đã vào cổng</span></div>
+    <div class="split"><div class="stack">
+      ${r ? `<div class="scan-result ${r.ok ? "ok" : "bad"}" role="status"><span class="mk" aria-hidden="true">${r.ok ? "✓" : "✕"}</span><div class="stack" style="gap:4px"><h2>${esc(r.title)}</h2><p>${esc(r.why)}</p>${r.t ? `<p class="small muted">Vé #${r.t.tokenId} · ${esc(tierOf(evOf(r.t.eventId), r.t.tierId).name)}</p>` : ""}</div></div>` : ""}
+      <div class="viewfinder"><span class="muted small" style="position:relative;max-width:30ch">Ứng dụng thật quét bằng camera. Bản mẫu: dán mã hoặc bấm một vé mẫu bên phải.</span></div>
+      <div class="row"><input class="in mono" id="gateToken" placeholder="GT1.t1.….…" style="flex:1 1 240px" data-enter="scan" aria-label="Mã vào cổng"><button class="btn" data-act="scan">Kiểm tra</button></div>
+      ${UI.scanLog.length ? `<section class="panel stack" style="gap:4px"><h3>Lượt quét gần đây</h3><ul class="hist">${UI.scanLog.slice(0, 6).map(l => `<li><span>${l.ok ? "✓" : "✕"} ${esc(l.title)}</span><span class="small muted">${fmtTime(l.at)}</span></li>`).join("")}</ul></section>` : ""}
+    </div>
+    <aside class="panel stack"><h2>Khách đưa mã (mô phỏng)</h2><p class="small muted">Mỗi nút tạo mã QR đang hiệu lực của vé đó, như khi khách mở ứng dụng.</p>
+      ${sims.map(t => `<button class="btn sec block" style="justify-content:space-between" data-act="scan-sim" data-id="${t.id}"><span>Vé #${t.tokenId} · ${esc(evOf(t.eventId).name.split(" ").slice(0, 3).join(" "))}</span>${chip(TSTAT[t.status])}</button>`).join("")}
+      <button class="btn sec block" data-act="scan-sim" data-id="t1" data-old="1">Ảnh chụp màn hình cũ của vé #1024</button>
+      <p class="hint">Bản mẫu cho quét trước ngày diễn ra để thử.</p></aside></div></div>`;
+}
+
+/* ---------- admin ---------- */
+function impact(ev) {
+  const sold = ev.tiers.reduce((x, t) => x + t.sold, 0), money = ev.tiers.reduce((x, t) => x + t.sold * t.price, 0);
+  const auctions = Object.values(S.auctions).filter(a => a.eventId === ev.id && ["open", "settling"].includes(a.status));
+  const resale = Object.values(S.tickets).filter(t => t.eventId === ev.id).reduce((s, t) => s + t.payments.filter(p => p.kind === "resale").reduce((x, p) => x + p.amount, 0), 0);
+  return { sold, orders: Math.round(sold * 0.72), auctions: auctions.length, total: money + resale };
+}
+function viewAdmin() {
+  const u = me(); if (!roleIn(u, "platform_admin")) return u ? forbidden() : needLogin();
+  const kyb = Object.values(S.orgs).filter(o => o.status === "pending"), cancels = Object.values(S.events).filter(e => e.status === "cancel_requested");
+  const refunds = S.refunds, failed = refunds.filter(r => r.status === "failed");
+  const tabs = [["cancel", "Duyệt hủy sự kiện", cancels.length], ["kyb", "Duyệt ban tổ chức", kyb.length], ["refunds", "Hoàn tiền", failed.length], ["audit", "Nhật ký kiểm toán", S.audit.length]];
+  const reasonBox = (id, ph) => `<label class="f" for="rs-${id}">Lý do (bắt buộc, ghi vào nhật ký kiểm toán)<input class="in" id="rs-${id}" placeholder="${ph}"></label>${UI.adminErr === id ? `<p class="field-err" role="alert">Nhập lý do trước khi xác nhận.</p>` : ""}`;
+  let body = "";
+  if (UI.adminTab === "cancel") body = cancels.length ? cancels.map(ev => { const im = impact(ev), org = S.orgs[ev.orgId]; return `<section class="panel stack">
+      <div class="row between"><div><h2>${esc(ev.name)}</h2><p class="small muted">${esc(org.name)} · diễn ra ${fmtDT(ev.startAt)}</p></div>${chip(ESTAT[ev.status])}</div>
+      <dl class="kv"><dt>Người gửi</dt><dd>${esc(S.users[ev.cancelReq.by].name)} (org_owner) · ${ago(ev.cancelReq.at)}</dd><dt>Lý do</dt><dd>${esc(ev.cancelReq.reason)}</dd><dt>Bằng chứng</dt><dd>${esc(ev.cancelReq.evidence)}</dd></dl>
+      <div class="grid g4"><div class="stat"><b>${im.sold}</b><span>Vé sẽ vô hiệu</span></div><div class="stat"><b>${im.orders}</b><span>Đơn bị ảnh hưởng</span></div><div class="stat"><b>${im.auctions}</b><span>Phiên đấu giá sẽ hủy</span></div><div class="stat"><b class="mono" style="font-size:1.1rem">${vnd(im.total)}</b><span>Tổng tiền hoàn dự kiến</span></div></div>
+      ${ev.cancelReq.by === u.id ? `<p class="small">Bạn là người gửi yêu cầu này nên không duyệt được.</p>` : `${reasonBox(ev.id, "Ví dụ: đã đối chiếu công văn với địa phương")}<div class="row"><button class="btn danger" data-act="cancel-approve" data-id="${ev.id}">Duyệt hủy và hoàn tiền</button><button class="btn sec" data-act="cancel-reject" data-id="${ev.id}">Từ chối, mở bán lại</button></div>`}</section>`; }).join("")
+    : `<div class="empty"><h3>Không có yêu cầu hủy nào chờ duyệt</h3><p class="muted">Thử: đổi sang vai Chi, mở một sự kiện đang bán và gửi yêu cầu hủy.</p></div>`;
+  else if (UI.adminTab === "kyb") body = kyb.length ? kyb.map(o => `<section class="panel stack"><div class="row between"><h2>${esc(o.name)}</h2>${chip(["Chờ duyệt", "info"])}</div>
+      <dl class="kv"><dt>Mã số thuế</dt><dd class="mono">${esc(o.taxId)}</dd><dt>Giấy phép</dt><dd>${esc(o.license)}</dd><dt>Người đại diện</dt><dd>${esc(o.repName)} · eKYC ${o.repKyc === "verified" ? chip(["Đã xác minh", "ok"]) : chip(["Chưa xác minh", "warn"])}</dd><dt>Tài khoản nhận tiền</dt><dd>${esc(o.bank)}</dd><dt>Nộp</dt><dd>${ago(o.submittedAt)}</dd></dl>
+      ${o.repKyc !== "verified" ? `<p class="small">Người đại diện chưa xác minh danh tính nên chưa duyệt được.</p>` : ""}
+      ${reasonBox(o.id, "Ví dụ: hồ sơ đủ, khớp đăng ký kinh doanh")}<div class="row"><button class="btn" data-act="kyb-approve" data-id="${o.id}" ${o.repKyc !== "verified" ? "disabled" : ""}>Duyệt, cấp quyền phát hành vé</button><button class="btn sec" data-act="kyb-reject" data-id="${o.id}">Từ chối</button></div></section>`).join("")
+    : `<div class="empty"><h3>Không có hồ sơ ban tổ chức chờ duyệt</h3></div>`;
+  else if (UI.adminTab === "refunds") body = `<div class="tbl-wrap"><table class="t"><thead><tr><th>Mã</th><th>Sự kiện</th><th>Người nhận</th><th class="r">Số tiền</th><th>Trạng thái</th><th></th></tr></thead><tbody>${refunds.map(r => `<tr><td class="mono small">${r.id}</td><td>${esc(evOf(r.eventId).name)}<div class="small muted">${r.kind === "resale" ? "Tiền mua lại" : "Tiền mua sơ cấp"}</div></td><td>${esc(maskEmail(S.users[r.userId].email))}</td><td class="r mono">${vnd(r.amount)}</td><td>${chip(RSTAT[r.status])}<div class="small muted">${r.attempts} lần thử${r.lastError ? " · " + esc(r.lastError) : ""}</div></td><td class="r">${r.status === "failed" ? `<button class="btn sec sm" data-act="refund-open" data-id="${r.id}">Thử lại</button>` : ""}</td></tr>`).join("")}</tbody></table></div>
+    ${UI.refundOpen ? `<section class="panel stack"><h3>Thử lại hoàn tiền ${UI.refundOpen}</h3>${reasonBox(UI.refundOpen, "Ví dụ: khách đã cập nhật thẻ mới")}<div class="row"><button class="btn" data-act="refund-retry" data-id="${UI.refundOpen}">Thử lại</button><button class="btn ghost" data-act="refund-close">Đóng</button></div></section>` : ""}`;
+  else body = `<p class="small muted">Chỉ thêm, không sửa hay xóa được.</p><div class="tbl-wrap"><table class="t"><thead><tr><th>Thời điểm</th><th>Người thực hiện</th><th>Hành động</th><th>Đối tượng</th><th>Lý do</th></tr></thead><tbody>${S.audit.map(a => `<tr><td class="num small">${fmtTime(a.at)}<br>${fmtDay(a.at)}</td><td>${esc(S.users[a.actor].name)}<div class="small muted">${a.role}</div></td><td class="mono small">${a.action}</td><td>${esc(a.target)}</td><td>${esc(a.reason)}</td></tr>`).join("")}</tbody></table></div>`;
+  return `<div class="stack" style="gap:20px"><h1>Quản trị nền tảng</h1>
+    <div class="tabs" role="tablist">${tabs.map(([k, l, c]) => `<button role="tab" class="${UI.adminTab === k ? "on" : ""}" data-act="admintab" data-k="${k}">${l}${c ? `<span class="cnt">${c}</span>` : ""}</button>`).join("")}</div>${body}</div>`;
+}
+
+function viewVerify() {
+  const r = UI.verify;
+  return `<div class="stack" style="max-width:620px;gap:16px"><h1>Xác minh vé</h1><p class="muted">Kiểm tra một vé có thật và còn hiệu lực trước khi nhận chuyển nhượng ngoài nền tảng. Trang này không hiện thông tin người giữ vé.</p>
+    <div class="row"><input class="in mono" id="verifyId" inputmode="numeric" placeholder="Token ID, ví dụ 1024" style="flex:1 1 200px" data-enter="verify"><button class="btn" data-act="verify">Kiểm tra</button></div>
+    ${r ? r.t ? (() => { const ev = evOf(r.t.eventId); return `<section class="panel stack"><div class="row between"><h2>Vé #${r.t.tokenId}</h2>${chip(TSTAT[r.t.status])}</div><dl class="kv"><dt>Sự kiện</dt><dd>${esc(ev.name)}</dd><dt>Thời gian</dt><dd>${fmtDT(ev.startAt)}</dd><dt>Hạng</dt><dd>${esc(tierOf(ev, r.t.tierId).name)}</dd><dt>Hợp đồng</dt><dd class="mono">${short(CONTRACT)} · Fuji</dd><dt>Số lần chuyển</dt><dd>${r.t.transfers}</dd></dl><p class="small muted">Vé chỉ chuyển được qua sàn đấu giá. Mua bán ngoài nền tảng không được bảo vệ.</p></section>`; })()
+      : info("danger", "Không tìm thấy vé", `Không có vé nào mang token ID “${esc(r.q)}”. Kiểm tra lại số.`) : `<p class="small muted">Thử 1024, 1188 hoặc 3307.</p>`}</div>`;
+}
+
+function viewNotifs() {
+  const u = me(); if (!u) return needLogin();
+  const list = S.notifs.filter(n => n.userId === u.id);
+  return `<div class="stack" style="max-width:720px;gap:16px"><div class="section-title"><h1>Thông báo</h1>${list.some(n => !n.read) ? `<button class="btn ghost sm" data-act="read-all">Đánh dấu đã đọc hết</button>` : ""}</div>
+    ${list.length ? `<div class="panel" style="padding:4px 20px"><ul class="hist">${list.map(n => `<li style="align-items:flex-start"><a href="#${n.href || "events"}" data-act="read" data-id="${n.id}" style="color:var(--fg);text-decoration:none;${n.read ? "" : "font-weight:600"}">${esc(n.text)}</a><span class="small muted" style="white-space:nowrap">${ago(n.at)}</span></li>`).join("")}</ul></div>` : `<div class="empty"><h3>Chưa có thông báo</h3><p class="muted">Kết quả đấu giá, phát hành vé và hoàn tiền sẽ hiện ở đây.</p></div>`}</div>`;
+}
+
+/* ---------- modal ---------- */
+function renderModal() {
+  const root = document.getElementById("modalRoot"), M = UI.modal;
+  if (!M) { root.innerHTML = ""; return; }
+  let html = "";
+  if (M.type === "qr") {
+    const t = S.tickets[M.id], ev = evOf(t.eventId), next = (win() + 1) * 30000;
+    html = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div class="row between"><h2 id="mt">Mã vào cổng</h2><button class="btn ghost sm" data-act="close-modal">Đóng</button></div>
+      <p class="small muted">${esc(ev.name)} · ${esc(tierOf(ev, t.tierId).name)} · vé #${t.tokenId}</p>
+      <div class="qrbox" id="qrbox" aria-label="Mã QR vào cổng"></div>
+      <div><div class="row between small"><span>Mã đổi sau</span><strong class="mono" data-until="${next}">${dur(next - Date.now())}</strong></div><div class="countbar"><i id="qrbar" style="width:${(next - Date.now()) / 300}%"></i></div></div>
+      <p class="mono small muted" style="text-align:center;overflow-wrap:anywhere">${gateToken(t.id)}</p>
+      <p class="small">Đưa mã cho nhân viên soát vé. Ảnh chụp màn hình không dùng được vì mã đổi mỗi 30 giây.</p></div>`;
+  } else if (M.type === "auction") {
+    const t = S.tickets[M.id], ev = evOf(t.eventId), base = t.payments[0].amount, cap = Math.floor(base * 1.5), step = Math.max(10000, Math.round(base * 0.05 / 1000) * 1000);
+    const latest = ev.startAt - 2 * HOUR;
+    const durs = [[15 * MIN, "15 phút (demo)"], [HOUR, "1 giờ"], [6 * HOUR, "6 giờ"], [DAY, "24 giờ"], [3 * DAY, "3 ngày"]].filter(([d]) => Date.now() + d < latest);
+    html = `<div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mt"><div class="row between"><h2 id="mt">Bán lại vé #${t.tokenId}</h2><button class="btn ghost sm" data-act="close-modal">Đóng</button></div>
+      <p class="small muted">${esc(ev.name)} · ${esc(tierOf(ev, t.tierId).name)}</p>
+      <div class="lead"><div><span class="lbl">Giá gốc</span><span class="big" style="font-size:1.15rem">${vnd(base)}</span></div><div><span class="lbl">Trần (150%)</span><span class="big" style="font-size:1.15rem">${vnd(cap)}</span></div><div><span class="lbl">Bước giá</span><span class="big" style="font-size:1.15rem">${vnd(step)}</span></div></div>
+      <label class="f" for="aDur">Thời hạn phiên<select class="in" id="aDur">${durs.map(([d, l], i) => `<option value="${d}" ${i === 1 ? "selected" : ""}>${l}</option>`).join("")}</select><span class="hint">Phiên đóng sớm nếu có giá chạm trần, hoặc 5 phút không ai trả giá tiếp.</span></label>
+      <label class="f" for="aOpen">Giá mở (đ)<input class="in mono" id="aOpen" inputmode="numeric" value="${base}"><span class="hint">Từ 10.000 đ đến ${vnd(cap)}.</span></label>
+      ${M.err ? `<p class="field-err" role="alert">${esc(M.err)}</p>` : ""}
+      <p class="small" style="padding:10px 12px;border-radius:8px;background:var(--surface-2)">Trong lúc rao bán, vé bị khóa và không vào cổng được. Bạn hủy được phiên khi chưa có ai trả giá. Tiền bán được giải ngân sau khi sự kiện kết thúc 1 ngày.</p>
+      <div class="row"><button class="btn" data-act="create-auction" data-id="${t.id}">Mở phiên</button><button class="btn ghost" data-act="close-modal">Để sau</button></div></div>`;
+  } else if (M.type === "mfa") {
+    html = `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><h2 id="mt">Xác nhận bằng mã 2 lớp</h2><p class="small muted">Thao tác đặc quyền cần mã TOTP nếu lần xác thực trước đã quá 15 phút.</p>
+      <label class="f" for="mfaCode">Mã 6 số<input class="in otp" id="mfaCode" maxlength="6" inputmode="numeric" data-enter="mfa-ok"></label>${M.err ? `<p class="field-err" role="alert">${esc(M.err)}</p>` : ""}
+      <div class="row"><button class="btn" data-act="mfa-ok">Xác nhận</button><button class="btn ghost" data-act="close-modal">Hủy</button></div></div>`;
+  } else if (M.type === "wallet") {
+    const u = me(), nonce = M.nonce;
+    html = `<div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mt"><div class="row between"><h2 id="mt">Liên kết ví của bạn</h2><button class="btn ghost sm" data-act="close-modal">Đóng</button></div>
+      ${M.step === 1 ? `<p class="small muted">Ví của bạn sẽ hiện thông điệp dưới đây để ký. Ký không tốn phí và không chuyển tài sản.</p>
+      <pre class="mono small" style="white-space:pre-wrap;background:var(--surface-2);padding:12px;border-radius:8px;margin:0;overflow-wrap:anywhere">nftticket.example muốn bạn đăng nhập bằng tài khoản Ethereum:
+${M.addr}
+
+Liên kết ví nhận vé với tài khoản NFT Ticket.
+
+URI: https://nftticket.example
+Version: 1
+Chain ID: ${CHAIN_ID}
+Nonce: ${nonce}
+Issued At: ${new Date(M.at).toISOString()}
+Expiration Time: ${new Date(M.at + 5 * MIN).toISOString()}</pre>
+      <p class="small">Hết hạn sau <span class="mono" data-until="${M.at + 5 * MIN}">${dur(M.at + 5 * MIN - Date.now())}</span>.</p>
+      <div class="row"><button class="btn" data-act="siwe-sign">Ký bằng ví (mô phỏng)</button><button class="btn sec sm" data-act="siwe-wrong">Mô phỏng sai mạng</button></div>${M.err ? `<p class="field-err" role="alert">${esc(M.err)}</p>` : ""}`
+      : `<p class="small">Chữ ký hợp lệ. Nhập mã OTP vừa gửi đến <strong>${esc(u.email)}</strong> để xác nhận đổi ví nhận vé.</p><label class="f" for="wOtp">Mã 6 số<input class="in otp" id="wOtp" maxlength="6" inputmode="numeric" data-enter="wallet-otp"></label>${M.err ? `<p class="field-err" role="alert">${esc(M.err)}</p>` : ""}<div><button class="btn" data-act="wallet-otp">Xác nhận</button></div>`}</div>`;
+  }
+  root.innerHTML = `<div class="backdrop" data-act="backdrop">${html}</div>`;
+  if (M.type === "qr") drawQr();
+  const f = root.querySelector("input,select,button.btn"); if (f && M.type !== "qr") f.focus();
+}
+function drawQr() {
+  const box = document.getElementById("qrbox"); if (!box || !UI.modal) return;
+  box.innerHTML = ""; const tok = gateToken(UI.modal.id);
+  if (window.QRCode) new QRCode(box, { text: tok, width: 220, height: 220, colorDark: "#0E1412", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
+  else box.innerHTML = `<div style="width:220px;height:220px;display:flex;align-items:center;justify-content:center;color:#14201B;line-height:1.4;font-family:var(--f-mono);font-size:12px;text-align:center;padding:12px">${tok}</div>`;
+  UI.modal.w = win();
+}
+
+/* ---------- render ---------- */
+function render() {
+  const keep = {}; document.querySelectorAll("#app input[id],#app textarea[id],#app select[id]").forEach(el => { if (el.type !== "file" && el.type !== "radio") keep[el.id] = el.type === "checkbox" ? el.checked : el.value; });
+  const focus = document.activeElement && document.activeElement.id, selStart = document.activeElement && document.activeElement.selectionStart;
+  renderChrome();
+  const r = route(); let html;
+  if (r === "events") html = viewEvents();
+  else if (r.startsWith("event-")) html = viewEvent(r.slice(6));
+  else if (r === "checkout") html = viewCheckout();
+  else if (r === "tickets") html = viewTickets();
+  else if (r === "auctions") html = viewAuctions();
+  else if (r.startsWith("auction-")) html = viewAuction(r.slice(8));
+  else if (r === "login") html = viewLogin();
+  else if (r === "account") html = viewAccount();
+  else if (r === "kyc") html = viewKyc();
+  else if (r === "kyc-review") html = viewKycReview();
+  else if (r === "org") html = viewOrg();
+  else if (r === "org-new") html = viewOrgNew();
+  else if (r.startsWith("org-event-")) html = viewOrgEvent(r.slice(10));
+  else if (r === "gate") html = viewGate();
+  else if (r === "admin") html = viewAdmin();
+  else if (r === "verify") html = viewVerify();
+  else if (r === "notifications") html = viewNotifs();
+  else html = notFound();
+  const app = document.getElementById("app"); app.innerHTML = html;
+  for (const [id, v] of Object.entries(keep)) { const el = document.getElementById(id); if (!el || el.dataset.fresh) continue; if (el.type === "checkbox") el.checked = v; else if (el.tagName !== "SELECT" && !el.dataset.model) el.value = v; }
+  if (focus) { const el = document.getElementById(focus); if (el) { el.focus(); try { if (selStart != null) el.setSelectionRange(selStart, selStart); } catch (e) {} } }
+}
+function updateClocks() {
+  const now = Date.now();
+  document.querySelectorAll("[data-until]").forEach(el => { el.textContent = dur(+el.dataset.until - now); });
+  if (UI.modal && UI.modal.type === "qr") {
+    if (UI.modal.w !== win()) renderModal();
+    const bar = document.getElementById("qrbar"); if (bar) bar.style.width = ((win() + 1) * 30000 - now) / 300 + "%";
+  }
+}
+function go(h) { if (location.hash.slice(1) === h) render(); else location.hash = h; }
+function clearTransient() { UI.blocks = {}; UI.bidErr = null; UI.agreeErr = false; UI.staffErr = null; UI.crErr = null; UI.pubErr = null; UI.adminErr = null; }
+
+/* ============================================================
+   ACTIONS
+   ============================================================ */
+const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ""; };
+const A = {
+  reset() { S = seed(); save(); Object.assign(UI, { login: null, kyc: null, checkout: null, wiz: null, scan: null, scanLog: [], modal: null, sel: null }); clearTransient(); renderModal(); toast("Đã đặt lại dữ liệu demo."); go(defaultRoute()); },
+  "clear-filter"() { UI.q = ""; UI.city = ""; render(); },
+  "clear-auc"() { UI.aucFilter = ""; render(); },
+  "pick-tier"(d, el) { UI.sel.tierId = el.value; UI.sel.qty = 1; UI.blocks = {}; render(); },
+  qty(d) { const ev = evOf(UI.sel.eventId), t = tierOf(ev, UI.sel.tierId); UI.sel.qty = Math.max(1, Math.min(t.limit, avail(t), UI.sel.qty + +d.d)); render(); },
+  buy(d) {
+    const ev = evOf(d.id), t = tierOf(ev, UI.sel.tierId), q = UI.sel.qty;
+    const b = checkBuy(ev, t, q); UI.blocks["buy-" + d.id] = b;
+    if (b) return render();
+    if (avail(t) < q) { UI.blocks["buy-" + d.id] = { code: "PURCHASE_LIMIT_REACHED", detail: `Chỉ còn ${avail(t)} vé hạng này.` }; return render(); }
+    if (UI.checkout && !UI.checkout.done) releaseHold();
+    t.held += q; UI.checkout = { eventId: ev.id, tierId: t.id, qty: q, expiresAt: Date.now() + HOLD_MS }; UI.agreeErr = false; save(); go("checkout");
+  },
+  pay(d) {
+    const c = UI.checkout; if (!c) return;
+    if (d.ok === "1" && !document.getElementById("agree").checked) { UI.agreeErr = true; return render(); }
+    const ev = evOf(c.eventId), t = tierOf(ev, c.tierId);
+    if (d.ok === "0") { releaseHold(); c.failed = true; S.orders.push({ id: rid("ord_"), userId: S.me, eventId: ev.id, tierId: t.id, qty: c.qty, amount: t.price * c.qty, status: "payment_failed", at: Date.now() }); save(); return render(); }
+    t.held -= c.qty; t.sold += c.qty; c.done = true; c.released = true;
+    S.orders.push({ id: rid("ord_"), userId: S.me, eventId: ev.id, tierId: t.id, qty: c.qty, amount: t.price * c.qty, status: "paid", at: Date.now(), issueAt: Date.now() + 3000 });
+    UI.checkout = null; save(); toast("Thanh toán thành công. Đang phát hành vé…"); go("tickets");
+  },
+  "cancel-checkout"() { releaseHold(); const id = UI.checkout.eventId; UI.checkout = null; save(); go("event-" + id); },
+  tfilter(d) { UI.ticketFilter = d.k; render(); },
+  auctab(d) { UI.aucTab = d.k; render(); },
+  admintab(d) { UI.adminTab = d.k; UI.adminErr = null; render(); },
+  "show-qr"(d) {
+    const u = me(), t = S.tickets[d.id], b = levelBlock(u, false);
+    if (b) { UI.blocks["auc-" + t.id] = { code: b }; return render(); }
+    UI.modal = { type: "qr", id: d.id }; renderModal();
+  },
+  "open-auction"(d) {
+    const t = S.tickets[d.id], b = checkAuctionCreate(t);
+    UI.blocks["auc-" + t.id] = b; if (b) return render();
+    UI.modal = { type: "auction", id: d.id }; renderModal();
+  },
+  "create-auction"(d) {
+    const t = S.tickets[d.id], ev = evOf(t.eventId), base = t.payments[0].amount, cap = Math.floor(base * 1.5), step = Math.max(10000, Math.round(base * 0.05 / 1000) * 1000);
+    const open = parseInt(val("aOpen").replace(/\D/g, ""), 10), durMs = +val("aDur");
+    if (!(open >= 10000 && open <= cap)) { UI.modal.err = `Giá mở phải từ 10.000 đ đến ${vnd(cap)}.`; return renderModal(); }
+    if (!durMs) { UI.modal.err = "Sự kiện sắp diễn ra nên không còn thời hạn phiên nào hợp lệ."; return renderModal(); }
+    const b = checkAuctionCreate(t); if (b) { UI.modal = null; renderModal(); UI.blocks["auc-" + t.id] = b; return render(); }
+    const id = rid("a"); S.auctions[id] = { id, ticketId: t.id, sellerId: S.me, eventId: ev.id, base, capBps: 15000, cap, openPrice: open, step, silenceMs: SILENCE, startAt: Date.now(), endAt: Date.now() + durMs, status: "open", bids: [], sim: { max: Math.floor(base * 1.3) } };
+    t.status = "listed"; UI.modal = null; renderModal(); save(); toast("Đã mở phiên. Vé đang được rao bán."); go("auction-" + id);
+  },
+  "cancel-auction"(d) { const a = S.auctions[d.id]; if (a.bids.length) return; closeAuction(a, "seller_cancelled"); save(); toast("Đã hủy phiên. Vé trở lại dùng được."); render(); },
+  "bid-quick"(d) { const el = document.getElementById("bidAmt"); if (el) el.value = d.v; A.bid(d); },
+  bid(d) {
+    const a = S.auctions[d.id], b = checkBid(a);
+    if (b) { UI.blocks["bid-" + d.id] = b; return render(); }
+    const amt = parseInt(val("bidAmt").replace(/\D/g, ""), 10), mn = minNext(a);
+    if (!(amt >= mn)) { UI.bidErr = `Giá phải từ ${vnd(mn)}.`; return render(); }
+    if (amt > a.cap) { UI.bidErr = `Giá không được vượt trần ${vnd(a.cap)}.`; return render(); }
+    UI.bidErr = null; placeBid(a, S.me, amt);
+    const el = document.getElementById("bidAmt"); if (el) el.dataset.fresh = "1";
+    save(); toast(a.status === "settling" ? "Giá của bạn chạm trần. Bạn thắng phiên!" : "Đã ghi nhận giá " + vnd(amt)); render();
+  },
+  "pay-settle"(d) { const a = S.auctions[d.id]; if (a.status !== "settling" || a.winnerId !== S.me) return; settleAuction(a); save(); toast("Thanh toán xong. Vé đã chuyển vào tài khoản của bạn."); go("tickets"); },
+  /* login */
+  "send-otp"() {
+    const L = UI.login; const email = L.step === "email" ? val("email").toLowerCase() : L.email;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { L.err = "Email chưa đúng định dạng, ví dụ ban@example.com."; return render(); }
+    L.sends = L.sends.filter(t => Date.now() - t < HOUR);
+    if (L.sends.length >= 5) { L.err = "Bạn đã yêu cầu 5 mã trong 1 giờ. Thử lại sau."; return render(); }
+    L.sends.push(Date.now()); Object.assign(L, { email, step: "otp", sentAt: Date.now(), attempts: 5, err: null });
+    toast("Đã gửi mã đến " + email + " (mã demo: " + DEMO_CODE + ")"); render();
+  },
+  "login-back"() { UI.login.step = "email"; UI.login.err = null; render(); },
+  "verify-otp"() {
+    const L = UI.login, code = val("otp");
+    if (code !== DEMO_CODE) { L.attempts--; if (L.attempts <= 0) { L.lockedUntil = Date.now() + 15 * MIN; L.err = null; } else L.err = `Mã chưa đúng. Còn ${L.attempts} lần thử.`; return render(); }
+    let u = Object.values(S.users).find(x => x.email === L.email && !x.bot);
+    if (!u) { const id = rid("u_"); u = S.users[id] = { id, name: L.email.split("@")[0], email: L.email, phone: null, phoneVerified: false, wallet: { type: "custodial", address: addrOf(id) }, kyc: { status: "not_started", attempts: [] }, roles: [], totp: false }; L.isNew = true; }
+    L.uid = u.id;
+    if (isStaff(u)) { L.step = "mfa"; L.err = null; return render(); }
+    A._finishLogin();
+  },
+  "verify-login-mfa"() { const L = UI.login; if (val("totp") !== DEMO_CODE) { L.err = "Mã chưa đúng. Kiểm tra giờ trên điện thoại rồi thử lại."; return render(); } S.lastMfa[L.uid] = Date.now(); A._finishLogin(); },
+  _finishLogin() { const L = UI.login; S.me = L.uid; save(); UI.login = null; toast(L.isNew ? "Đã tạo tài khoản và ví nhận vé cho bạn." : "Đăng nhập thành công."); go(L.isNew ? "account" : defaultRoute()); },
+  logout() { S.me = null; save(); toast("Đã đăng xuất."); go("events"); },
+  "logout-all"() { toast("Đã đăng xuất mọi thiết bị khác."); },
+  /* account */
+  "save-name"() { const n = val("dname"); if (n.length < 2) return toast("Tên hiển thị cần ít nhất 2 ký tự."); me().name = n; save(); toast("Đã lưu tên hiển thị."); render(); },
+  "send-sms"() {
+    const p = val("phone").replace(/\s/g, ""); UI.phone = { phone: p };
+    if (!/^0\d{9}$/.test(p)) { UI.phone.err = "Số điện thoại gồm 10 chữ số, bắt đầu bằng 0."; return render(); }
+    if (Object.values(S.users).some(u => u.id !== S.me && u.phone === p)) { UI.phone.err = "Số này đã gắn với một tài khoản khác."; return render(); }
+    UI.phone.step = "code"; toast("Đã gửi SMS (mã demo: " + DEMO_CODE + ")"); render();
+  },
+  "phone-back"() { UI.phone = { phone: UI.phone.phone }; render(); },
+  "verify-sms"() { if (val("smsCode") !== DEMO_CODE) { UI.phone.err = "Mã chưa đúng."; return render(); } const u = me(); u.phone = UI.phone.phone; u.phoneVerified = true; UI.phone = null; save(); toast("Đã xác thực số điện thoại. Bạn đạt cấp L" + levelOf(u) + "."); render(); },
+  "link-wallet"() { UI.modal = { type: "wallet", step: 1, nonce: h32(Math.random()) + h32(Date.now()), at: Date.now(), addr: addrOf("ext" + Math.random()) }; renderModal(); },
+  "siwe-wrong"() { UI.modal.err = "Ví đang ở mạng khác (chainId 1). Chuyển sang Avalanche Fuji (43113) rồi ký lại."; renderModal(); },
+  "siwe-sign"() { if (Date.now() > UI.modal.at + 5 * MIN) { UI.modal.err = "Yêu cầu ký đã hết hạn. Đóng và mở lại để lấy yêu cầu mới."; return renderModal(); } UI.modal.step = 2; UI.modal.err = null; toast("Đã gửi OTP xác nhận (mã demo: " + DEMO_CODE + ")"); renderModal(); },
+  "wallet-otp"() { if (val("wOtp") !== DEMO_CODE) { UI.modal.err = "Mã chưa đúng."; return renderModal(); } me().wallet = { type: "external", address: UI.modal.addr }; UI.modal = null; renderModal(); save(); toast("Đã liên kết ví. Vé mới sẽ về ví này."); render(); },
+  /* kyc */
+  "kyc-retry"() { UI.kyc = { step: "consent", retry: true }; render(); },
+  "kyc-step"(d) { UI.kyc.step = d.s; UI.kyc.err = null; render(); },
+  "kyc-consent"() { if (!document.getElementById("consent").checked) { UI.kyc.err = "Bạn cần đồng ý để tiếp tục. Nếu không, các tính năng cấp L2 vẫn dùng bình thường."; return render(); } UI.kyc.step = "doc"; UI.kyc.err = null; render(); },
+  "kyc-doc"() { const c = val("cccd"); UI.kyc.cccd = c; if (!/^\d{12}$/.test(c)) { UI.kyc.err = "Số CCCD gồm đúng 12 chữ số."; return render(); } UI.kyc.step = "review"; UI.kyc.err = null; render(); },
+  "kyc-selfie"() {
+    UI.kyc.checking = true; render();
+    setTimeout(() => { const u = me(); if (!u) return; u.kyc = { ...u.kyc, status: "pending", manual: false, cccd: UI.kyc.cccd, legalName: u.name.toUpperCase(), dob: "14/03/1998", submittedAt: Date.now(), resolveAt: Date.now() + 3500, attempts: [...u.kyc.attempts, Date.now()] }; UI.kyc = null; save(); render(); }, 1600);
+  },
+  "kyc-approve"(d) { const x = S.users[d.id]; x.kyc.status = "verified"; x.kyc.verifiedAt = Date.now(); x.kyc.manual = false; audit("kyc.review_approve", x.kyc.legalName || x.name, "Duyệt tay, ảnh rõ, khớp khuôn mặt"); notify(x.id, "Bạn đã xác minh danh tính thành công.", "kyc"); save(); toast("Đã duyệt hồ sơ."); render(); },
+  "kyc-reject"(d) { const x = S.users[d.id], code = val("rr-" + d.id); x.kyc.status = "rejected"; x.kyc.reason = code; x.kyc.manual = false; audit("kyc.review_reject", x.kyc.legalName || x.name, code); notify(x.id, "Xác minh danh tính chưa đạt: " + KYCR[code], "kyc"); save(); toast("Đã từ chối hồ sơ."); render(); },
+  /* org */
+  "wiz-next"() { const W = UI.wiz; W.err = wizValidate(W); if (W.err) return render(); W.step++; render(); },
+  "wiz-back"() { UI.wiz.step--; UI.wiz.err = null; render(); },
+  "wiz-add"() { UI.wiz.tiers.push({ name: "", price: 500000, qty: 100, limit: 2 }); render(); },
+  "wiz-del"(d) { UI.wiz.tiers.splice(+d.i, 1); render(); },
+  "wiz-save"(d) {
+    if (d.pub === "1" && !requireMfa("wiz-save", d)) return;
+    const W = UI.wiz, id = rid("e"), oid = myOrgId(me());
+    S.events[id] = { id, orgId: oid, name: W.name.trim(), desc: W.desc.trim(), venue: W.venue.trim(), city: W.city.trim(), hue: Math.floor(Math.random() * 360), status: d.pub === "1" ? "published" : "draft", kycRequired: W.kyc,
+      startAt: +new Date(W.start), endAt: +new Date(W.end), saleStart: +new Date(W.saleStart), saleEnd: +new Date(W.saleEnd), cancelReq: null,
+      tiers: W.tiers.map((t, i) => ({ id: id + "-" + i, name: t.name, price: +t.price, qty: +t.qty, sold: 0, held: 0, limit: +t.limit })) };
+    audit(d.pub === "1" ? "event.publish" : "event.create", W.name, d.pub === "1" ? "Tạo và xuất bản" : "Tạo bản nháp");
+    UI.wiz = null; save(); toast(d.pub === "1" ? "Đã xuất bản sự kiện." : "Đã lưu bản nháp."); go("org-event-" + id);
+  },
+  publish(d) { if (!requireMfa("publish", d)) return; const ev = evOf(d.id); ev.status = "published"; audit("event.publish", ev.name, "Xuất bản từ bản nháp"); save(); toast("Đã xuất bản. Sự kiện hiện trên trang công khai."); render(); },
+  "assign-staff"(d) {
+    const email = val("staffEmail").toLowerCase(), ev = evOf(d.id), u = Object.values(S.users).find(x => x.email === email && !x.bot);
+    if (!u) { UI.staffErr = "Chưa có tài khoản dùng email này. Nhờ người đó đăng ký trước."; return render(); }
+    if (u.roles.some(r => r.role === "gate_staff" && r.id === d.id)) { UI.staffErr = "Người này đã có quyền soát vé sự kiện này."; return render(); }
+    if (!requireMfa("assign-staff", d)) return;
+    u.roles.push({ role: "gate_staff", scope: "event", id: d.id, expiresAt: ev.endAt + DAY }); u.totp = true;
+    audit("role.grant gate_staff", ev.name + " → " + maskEmail(u.email), "Giao soát vé"); notify(u.id, `Bạn được giao soát vé “${ev.name}”. Cần bật xác thực 2 lớp trước khi dùng.`, "gate");
+    UI.staffErr = null; save(); toast("Đã giao quyền soát vé."); render();
+  },
+  "revoke-staff"(d) { const u = S.users[d.id]; u.roles = u.roles.filter(r => !(r.role === "gate_staff" && r.id === d.ev)); audit("role.revoke gate_staff", evOf(d.ev).name + " → " + maskEmail(u.email), "Thu hồi quyền"); save(); toast("Đã thu hồi. Có hiệu lực trong 60 giây."); render(); },
+  "cancel-request"(d) {
+    const reason = val("cr-reason"), evidence = val("cr-evidence");
+    if (reason.length < 10 || !evidence) { UI.crErr = "Nhập lý do (ít nhất 10 ký tự) và bằng chứng."; return render(); }
+    if (!requireMfa("cancel-request", d)) return;
+    const ev = evOf(d.id); ev.status = "cancel_requested"; ev.cancelReq = { status: "requested", reason, evidence, by: S.me, at: Date.now() };
+    audit("event.cancel_request", ev.name, reason); notify("u_admin", `Ban tổ chức yêu cầu hủy “${ev.name}”.`, "admin");
+    UI.crErr = null; save(); toast("Đã gửi yêu cầu. Sự kiện tạm dừng bán."); render();
+  },
+  /* gate */
+  scan() { const tok = val("gateToken"); if (!tok) return; A._scan(tok); },
+  "scan-sim"(d) { A._scan(gateToken(d.id, d.old ? win() - 20 : win())); },
+  _scan(tok) { const r = verifyGate(tok, UI.gateEv); UI.scan = r; UI.scanLog.unshift({ ...r, at: Date.now() }); const el = document.getElementById("gateToken"); if (el) el.value = ""; save(); render(); },
+  /* admin */
+  "cancel-approve"(d) {
+    const reason = val("rs-" + d.id); if (!reason) { UI.adminErr = d.id; return render(); }
+    if (!requireMfa("cancel-approve", d)) return;
+    const ev = evOf(d.id); ev.status = "cancelled"; Object.assign(ev.cancelReq, { status: "approved", decidedBy: S.me, decidedAt: Date.now() });
+    ev.tiers.forEach(t => t.held = 0);
+    if (UI.checkout && UI.checkout.eventId === ev.id) UI.checkout = null;
+    Object.values(S.auctions).filter(a => a.eventId === ev.id && ["open", "settling"].includes(a.status)).forEach(a => { closeAuction(a, "event_cancelled"); a.bids.forEach(b => !S.users[b.userId].bot && notify(b.userId, `Phiên “${ev.name}” bị hủy vì sự kiện bị hủy. Bạn không bị trừ tiền.`, "auction-" + a.id)); });
+    Object.values(S.tickets).filter(t => t.eventId === ev.id && !t.status.startsWith("void")).forEach(t => {
+      t.status = "void_pending_refund";
+      t.payments.forEach(p => S.refunds.unshift({ id: rid("rf_"), userId: p.payer, ticketId: t.id, eventId: ev.id, amount: p.amount, reason: "event_cancelled", kind: p.kind, status: "pending", attempts: 1, createdAt: Date.now(), eta: Date.now() + 5 * DAY, auto: true, channel: "Kênh thanh toán gốc" }));
+      new Set(t.payments.map(p => p.payer)).forEach(uid => notify(uid, `“${ev.name}” đã bị hủy. Bạn được hoàn 100% số tiền đã trả về kênh thanh toán gốc.`, "tickets"));
+    });
+    S.payouts.filter(p => p.eventId === ev.id && p.status === "hold").forEach(p => p.status = "cancelled");
+    audit("event.cancel_approve", ev.name, reason); notify(ev.cancelReq.by, `Nền tảng đã duyệt hủy “${ev.name}”. Hoàn tiền đang chạy theo lô.`, "org-event-" + ev.id);
+    save(); toast("Đã duyệt hủy. Vé vô hiệu, hoàn tiền đã được tạo."); UI.adminTab = "refunds"; render();
+  },
+  "cancel-reject"(d) {
+    const reason = val("rs-" + d.id); if (!reason) { UI.adminErr = d.id; return render(); }
+    if (!requireMfa("cancel-reject", d)) return;
+    const ev = evOf(d.id); ev.status = "published"; Object.assign(ev.cancelReq, { status: "rejected", rejectReason: reason, decidedBy: S.me, decidedAt: Date.now() });
+    audit("event.cancel_reject", ev.name, reason); notify(ev.cancelReq.by, `Yêu cầu hủy “${ev.name}” bị từ chối: ${reason}. Sự kiện mở bán lại.`, "org-event-" + ev.id);
+    save(); toast("Đã từ chối. Sự kiện mở bán lại."); render();
+  },
+  "kyb-approve"(d) { const reason = val("rs-" + d.id); if (!reason) { UI.adminErr = d.id; return render(); } if (!requireMfa("kyb-approve", d)) return; const o = S.orgs[d.id]; o.status = "approved"; audit("organizer.approve", o.name, reason); save(); toast("Đã duyệt. Tổ chức được cấp quyền phát hành vé."); render(); },
+  "kyb-reject"(d) { const reason = val("rs-" + d.id); if (!reason) { UI.adminErr = d.id; return render(); } if (!requireMfa("kyb-reject", d)) return; const o = S.orgs[d.id]; o.status = "rejected"; audit("organizer.reject", o.name, reason); save(); toast("Đã từ chối hồ sơ."); render(); },
+  "refund-open"(d) { UI.refundOpen = d.id; render(); },
+  "refund-close"() { UI.refundOpen = null; render(); },
+  "refund-retry"(d) { const reason = val("rs-" + d.id); if (!reason) { UI.adminErr = d.id; return render(); } if (!requireMfa("refund-retry", d)) return; const r = S.refunds.find(x => x.id === d.id); Object.assign(r, { status: "pending", attempts: r.attempts + 1, lastError: null, createdAt: Date.now(), auto: true }); audit("refund.retry", r.id, reason); UI.refundOpen = null; save(); toast("Đã đưa vào hàng hoàn tiền."); render(); },
+  /* misc */
+  verify() { const q = val("verifyId"); UI.verify = { q, t: Object.values(S.tickets).find(t => String(t.tokenId) === q) }; render(); },
+  "read-all"() { S.notifs.forEach(n => { if (n.userId === S.me) n.read = true; }); save(); render(); },
+  read(d) { const n = S.notifs.find(x => x.id === d.id); if (n) n.read = true; save(); },
+  "open-mfa"() { UI.modal = { type: "mfa", act: null }; renderModal(); },
+  "mfa-ok"() { if (val("mfaCode") !== DEMO_CODE) { UI.modal.err = "Mã chưa đúng."; return renderModal(); } S.lastMfa[S.me] = Date.now(); const { act, data } = UI.modal; UI.modal = null; renderModal(); save(); if (act) A[act](data || {}); },
+  "close-modal"() { UI.modal = null; renderModal(); },
+  backdrop(d, el, ev) { if (ev.target === el) A["close-modal"](); },
+};
+
+document.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]"); if (!el) return;
+  const act = el.dataset.act; if (!A[act]) return;
+  if (el.tagName === "INPUT" && el.type === "radio") return;
+  if (el.tagName === "A" && act === "read") { A.read(el.dataset); return; }
+  if (act !== "backdrop") e.preventDefault();
+  A[act]({ ...el.dataset }, el, e);
+});
+document.addEventListener("change", e => {
+  const el = e.target;
+  if (el.id === "persona") { S.me = el.value || null; save(); Object.assign(UI, { modal: null, kyc: null, login: null, phone: null, scan: null, refundOpen: null }); clearTransient(); renderModal(); toast(S.me ? "Đang xem với vai " + me().name : "Đang xem với vai khách"); go(defaultRoute()); return; }
+  if (el.dataset.act === "pick-tier") return A["pick-tier"]({}, el);
+  if (el.dataset.model && el.tagName === "SELECT") { UI[el.dataset.model] = el.value; render(); }
+  if (el.dataset.wiz === "kyc") UI.wiz.kyc = el.checked;
+});
+document.addEventListener("input", e => {
+  const el = e.target;
+  if (el.dataset.model && el.tagName === "INPUT") { UI[el.dataset.model] = el.value; render(); }
+  if (el.dataset.wiz && el.type !== "checkbox") UI.wiz[el.dataset.wiz] = el.value;
+  if (el.dataset.tier) { const [i, k] = el.dataset.tier.split("."); UI.wiz.tiers[+i][k] = el.value; }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && UI.modal) return A["close-modal"]();
+  if (e.key === "Enter" && e.target.dataset && e.target.dataset.enter) { e.preventDefault(); A[e.target.dataset.enter]({ ...e.target.dataset }); }
+});
+window.addEventListener("hashchange", () => { clearTransient(); if (UI.modal) { UI.modal = null; renderModal(); } render(); window.scrollTo(0, 0); });
+render();
+setInterval(tick, 1000);
+</script>
