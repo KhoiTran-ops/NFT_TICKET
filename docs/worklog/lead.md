@@ -1,5 +1,32 @@
 # Worklog · lead
 
+## 2026-11-16 · S2-05 ví custodial + S2-06 relayer
+
+- **Issue:** TIC-57 (S2-05), TIC-58 (S2-06). Chuyển TIC-47 sang Done (đã merge vào `main` qua PR #4, CI xanh).
+- **Thực hiện bởi:** AI (Claude Code), theo yêu cầu của trưởng nhóm. Commit đứng tên trưởng nhóm, không có dòng Claude.
+- **Thứ tự:** việc LEAD còn lại của Sprint 1 là TIC-48 (deploy Fuji) đang chờ trưởng nhóm có ví + faucet. Theo WORKING_RULES 7 (bị chặn thì chuyển việc khác), làm tiếp các việc LEAD của Sprint 2 không cần Fuji: TIC-57, TIC-58. TIC-59 (mint + indexer) và TIC-60 (`markUsed` async) cần chốt cách mint qua relayer và địa chỉ contract, chưa làm.
+- **Đã làm (TIC-57):**
+  - Migration `20261116000100_wallet_link`: bảng `WalletLink` (custodial/external). Mỗi địa chỉ chỉ gắn một tài khoản (unique, tính cả ví đã thu hồi). Mỗi tài khoản đúng một ví đang hoạt động (partial unique index). CHECK: chỉ ví custodial có khóa, địa chỉ chữ thường.
+  - `backend/src/modules/wallet/custodial.ts`: sinh khóa secp256k1 (viem), mã hóa AES-256-GCM bằng khóa con HKDF của `FIELD_ENCRYPTION_KEY` (tách khỏi khóa TOTP), AAD gắn userId + địa chỉ. `signer()` chỉ dùng nội bộ cho relayer.
+  - Tạo ví trong cùng transaction đăng nhập qua hook `onLogin` (sửa tối thiểu `auth/sessions.ts`, `auth/routes.ts` của BE). `walletLinked` trong phiên lấy từ ví thật thay vì `false` cố định.
+- **Đã làm (TIC-58):**
+  - Migration `20261116000200_chain_transaction`: hàng đợi `ChainTransaction` (unique `idempotencyKey`, `txHash`; CHECK trạng thái và số lần thử).
+  - `backend/src/modules/chain/relayer.ts`: ký và lưu raw tx **trước** khi broadcast; thử lại = gửi lại đúng raw đó (không thể gửi trùng). Nonce cấp dưới advisory lock theo ví. Lỗi mạng: backoff lũy thừa, tối đa `maxAttempts`, rồi `failed`. Revert: `failed` ngay, không thử lại. Tx rơi khỏi mempool: gửi lại cùng raw. `status()`/`failed()` để đối soát, không trả raw tx.
+  - `chain/client.ts` (interface `ChainClient` + bản viem JSON-RPC), `chain/mock-chain.ts` (MockChain), `chain/worker.ts` (đọc cấu hình, vòng lặp worker). **Chưa nối vào `main.ts`**: đợi TIC-48 có địa chỉ contract.
+  - Thư viện mới: `viem` 2.57.14 (sinh khóa/địa chỉ, ký tx, JSON-RPC). Chọn bản phát hành trước 2 tuần.
+- **Bằng chứng (local, PostgreSQL 16):** build, lint, typecheck sạch. 101 test shared + 29 test backend thường + 25 test PostgreSQL pass (thêm 5 unit ví, 7 cấu hình relayer, 3 DB ví, 9 DB relayer). `prisma migrate diff` không drift. OpenAPI không đổi. CI GitHub: TIC-57 xanh; TIC-58 xem link run trong comment Linear.
+- **Cần BE review (đổi schema → 2 approve):** 2 migration mới; hook `onLogin` trong module auth; `userView` thêm quan hệ `wallets`.
+- **Còn mở / rủi ro:**
+  - Bản viem `ChainClient` chưa chạy với RPC thật (proxy chặn Fuji). Kiểm thử thật khi có TIC-48.
+  - Hàng `failed` sau khi đã ký có thể để lại khoảng trống nonce nếu tx thực ra đã vào mempool; vận hành đối soát qua `failed()`.
+  - Câu hỏi cũ chưa chốt: ai mint vé (ví issuer custodial hay role mint cho relayer); `cancelEvent` chỉ admin hay issuer.
+  - Rewrite lịch sử để bỏ `Claude-Session`: các commit đã nằm trên `main` (32 commit, gồm 9 merge và commit của BE). Force-push riêng nhánh LEAD không xóa được; cần trưởng nhóm xác nhận có rewrite `main` hay không.
+- **Việc tiếp theo:**
+  - [ ] Trưởng nhóm: deploy Fuji (TIC-48), commit `deployments/fuji.json`
+  - [ ] Chốt cách mint, rồi làm TIC-59 (mint sau thanh toán + indexer) và TIC-60 (`markUsed` async) trên relayer này
+  - [ ] Nối `startRelayerWorker` vào `main.ts` cùng BE khi có địa chỉ contract
+
+
 ## 2026-11-10 · S1-11 contract EventRegistry + TicketRegistry, chuẩn bị deploy Fuji
 
 - **Issue:** TIC-47 (S1-11), chuẩn bị TIC-48 (S1-12)
