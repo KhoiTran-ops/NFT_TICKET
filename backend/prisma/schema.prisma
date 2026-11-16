@@ -112,6 +112,7 @@ model User {
   grantedRoles RoleAssignment[] @relation("Grantor")
   orders       Order[]
   tickets      Ticket[]
+  wallets      WalletLink[]
 }
 
 model Session {
@@ -300,4 +301,25 @@ model Ticket {
   @@unique([chainId, registryAddress, tokenId])
   @@index([ownerId, status])
   @@index([orderId])
+}
+
+enum WalletKind {
+  custodial
+  external
+}
+
+// Ví nhận vé. Partial unique index "WalletLink_userId_active_key" (chỉ một ví revokedAt IS NULL mỗi user)
+// và các CHECK nằm trong migration SQL vì Prisma schema không biểu diễn được.
+model WalletLink {
+  id            String     @id @default(uuid()) @db.Uuid
+  userId        String     @db.Uuid
+  kind          WalletKind
+  address       String     @unique @db.VarChar(42)
+  keyCiphertext Bytes?
+  keyVersion    Int?
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  revokedAt     DateTime?  @db.Timestamptz(3)
+  user          User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
 }
