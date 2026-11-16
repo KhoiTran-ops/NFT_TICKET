@@ -323,3 +323,39 @@ model WalletLink {
 
   @@index([userId])
 }
+
+enum ChainTxStatus {
+  pending
+  signed
+  submitted
+  confirmed
+  failed
+}
+
+// Hàng đợi relayer (TIC-58). Các CHECK về trạng thái/định dạng nằm trong migration SQL.
+model ChainTransaction {
+  id             String        @id @default(uuid()) @db.Uuid
+  idempotencyKey String        @unique @db.VarChar(200)
+  kind           String        @db.VarChar(64)
+  chainId        Int
+  fromAddress    String        @db.VarChar(42)
+  toAddress      String        @db.VarChar(42)
+  data           Bytes
+  status         ChainTxStatus @default(pending)
+  nonce          Int?
+  rawTx          Bytes?
+  txHash         String?       @unique @db.VarChar(66)
+  attempts       Int           @default(0)
+  maxAttempts    Int           @default(5)
+  nextAttemptAt  DateTime      @default(now()) @db.Timestamptz(3)
+  lastError      String?       @db.VarChar(64)
+  blockNumber    BigInt?
+  /// Lần broadcast gần nhất (theo đồng hồ relayer), để quyết định gửi lại.
+  submittedAt    DateTime?     @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime      @default(now()) @updatedAt @db.Timestamptz(3)
+  confirmedAt    DateTime?     @db.Timestamptz(3)
+
+  @@index([status, nextAttemptAt])
+  @@index([chainId, fromAddress, nonce])
+}
