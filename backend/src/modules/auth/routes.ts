@@ -9,6 +9,7 @@ import { emailOtp } from "./otp.js";
 import type { DeliverOtp } from "./otp.js";
 import { sessions } from "./sessions.js";
 import { totpService } from "./totp.js";
+import { custodialWallets } from "../wallet/custodial.js";
 import type { RegisterStaffRoutes } from "./event-access.js";
 
 const messages = {
@@ -40,7 +41,8 @@ export function registerAuthRoutes(
 ) {
   const clock = options.clock ?? Date.now;
   const otp = emailOtp(db, options.otpPepper, options.deliver, clock);
-  const auth = sessions(db, options.jwtSecret, clock);
+  // Mỗi tài khoản có một ví custodial tạo trong transaction đăng nhập (TIC-57, PRODUCT_CONTEXT 5.3).
+  const auth = sessions(db, options.jwtSecret, clock, custodialWallets(options.fieldKey).ensure);
   const totp = totpService(db, options.fieldKey, clock);
   const active = new WeakMap<FastifyRequest, NonNullable<Awaited<ReturnType<typeof auth.authenticate>>>>();
   const publicRoute = { public: true } as const;

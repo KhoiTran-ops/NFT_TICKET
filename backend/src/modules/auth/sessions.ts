@@ -9,6 +9,7 @@ const hour = 3_600_000;
 const userView = {
   id: true, displayName: true, emailVerifiedAt: true, phoneVerifiedAt: true,
   lockedUntil: true, sessionVersion: true, kyc: { select: { status: true } },
+  wallets: { where: { revokedAt: null }, select: { id: true }, take: 1 },
 } satisfies Prisma.UserSelect;
 const sessionView = { user: { select: userView } } satisfies Prisma.SessionInclude;
 type Session = Prisma.SessionGetPayload<{ include: typeof sessionView }>;
@@ -26,7 +27,10 @@ const rolesAt = (db: Prisma.TransactionClient, userId: string, now: Date) => db.
 export const lockUser = (tx: Prisma.TransactionClient, userId: string) =>
   tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId}::uuid FOR UPDATE`;
 
-export function sessions(db: PrismaClient, secret: Buffer, clock: () => number) {
+/** Chạy trong transaction đăng nhập, sau khi hàng User đã bị khóa (ví dụ: tạo ví custodial, TIC-57). */
+export type OnLogin = (tx: Prisma.TransactionClient, userId: string) => Promise<unknown>;
+
+export function sessions(db: PrismaClient, secret: Buffer, clock: () => number, onLogin?: OnLogin) {
   async function issue(
     tx: Prisma.TransactionClient, user: Session["user"], now: Date,
     roles: Role[], previous?: Session,
@@ -49,7 +53,7 @@ export function sessions(db: PrismaClient, secret: Buffer, clock: () => number) 
     const { user } = session;
     return {
       user: { id: user.id, displayName: user.displayName, emailVerified: Boolean(user.emailVerifiedAt),
-        phoneVerified: Boolean(user.phoneVerifiedAt), walletLinked: false, kycStatus: user.kyc?.status ?? "not_started" },
+        phoneVerified: Boolean(user.phoneVerifiedAt), walletLinked: user.wallets.length > 0, kycStatus: user.kyc?.status ?? "not_started" },
       roles: roles.map(({ role, scopeType, organizationId, eventId, expiresAt }) =>
         ({ role, scopeType, scopeId: organizationId ?? eventId, expiresAt })),
       verificationLevel: "L1",
@@ -71,6 +75,7 @@ export function sessions(db: PrismaClient, secret: Buffer, clock: () => number) 
         await tx.user.update({ where: { id: user.id }, data: { emailVerifiedAt: now } });
       }
       if (!existing) await tx.roleAssignment.create({ data: { userId: user.id, role: "user", scopeType: "platform" } });
+      await onLogin?.(tx, user.id);
       return issue(tx, user, now, await rolesAt(tx, user.id, now));
     },
     async tokens(grant: Awaited<ReturnType<typeof issue>>) {
