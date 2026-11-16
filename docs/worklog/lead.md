@@ -20,7 +20,7 @@
   - Bản viem `ChainClient` chưa chạy với RPC thật (proxy chặn Fuji). Kiểm thử thật khi có TIC-48.
   - Hàng `failed` sau khi đã ký có thể để lại khoảng trống nonce nếu tx thực ra đã vào mempool; vận hành đối soát qua `failed()`.
   - Câu hỏi cũ chưa chốt: ai mint vé (ví issuer custodial hay role mint cho relayer); `cancelEvent` chỉ admin hay issuer.
-  - Rewrite lịch sử để bỏ `Claude-Session`: các commit đã nằm trên `main` (32 commit, gồm 9 merge và commit của BE). Force-push riêng nhánh LEAD không xóa được; cần trưởng nhóm xác nhận có rewrite `main` hay không.
+  - Rewrite lịch sử để bỏ `Claude-Session`: các commit đã nằm trên `main` (32 commit, gồm 9 merge và commit của BE). Trưởng nhóm chọn **giữ nguyên `main`** (2026-11-16), không force-push nhánh dùng chung. Commit mới không có dòng Claude.
 - **Việc tiếp theo:**
   - [ ] Trưởng nhóm: deploy Fuji (TIC-48), commit `deployments/fuji.json`
   - [ ] Chốt cách mint, rồi làm TIC-59 (mint sau thanh toán + indexer) và TIC-60 (`markUsed` async) trên relayer này
